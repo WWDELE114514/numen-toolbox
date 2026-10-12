@@ -4,6 +4,7 @@ import com.dwinovo.numen.sdk.Doc;
 import com.dwinovo.numen.sdk.Example;
 import com.dwinovo.numen.sdk.Fn;
 import com.dwinovo.numen.sdk.Note;
+import com.dwinovo.numen.sdk.Omitted;
 import com.dwinovo.numen.sdk.SeeAlso;
 import com.dwinovo.numen.sdk.ServerCall;
 import net.neoforged.fml.ModList;
@@ -12,6 +13,7 @@ import net.neoforged.neoforgespi.language.IModInfo;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 
 /**
  * {@code toolbox.mods}:服务器装了哪些模组。
@@ -21,6 +23,11 @@ import java.util.Locale;
  */
 public final class ModsApi {
 
+    /** 不写上限时最多给几条。 */
+    private static final int DEFAULT_LIMIT = 100;
+    /** 一次最多给几条,免得把模型的上下文塞满。 */
+    private static final int MAX_LIMIT = 500;
+
     private ModsApi() {}
 
     /** 一个加载着的模组。 */
@@ -29,14 +36,22 @@ public final class ModsApi {
                       @Doc("Its display name.") String name,
                       @Doc("Its version.") String version) {}
 
+    /** 要几条。 */
+    public record ListArgs(@Doc("At most this many results (1-" + MAX_LIMIT + ").")
+                           @Omitted("" + DEFAULT_LIMIT) Optional<Integer> limit) {}
+
     @Fn("List every mod loaded on this server, by id.")
     @Example("for _, m in ipairs(toolbox.mods.list()) do print(m.id, m.name, m.version) end")
     @Note("Instant and read-only. Use it to see what a modded world offers before searching its items.")
     @SeeAlso({"toolbox.mods.has", "toolbox.mods.search", "toolbox.items.search"})
-    public static List<Mod> list(ServerCall call) {
+    public static List<Mod> list(ServerCall call, ListArgs args) {
+        int limit = Math.clamp((long) args.limit().orElse(DEFAULT_LIMIT), 1, MAX_LIMIT);
         List<Mod> out = new ArrayList<>();
         for (IModInfo info : ModList.get().getMods()) {
             out.add(row(info));
+            if (out.size() >= limit) {
+                break;
+            }
         }
         out.sort((a, b) -> a.id().compareTo(b.id()));
         return out;

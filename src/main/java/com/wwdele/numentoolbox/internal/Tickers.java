@@ -2,20 +2,26 @@ package com.wwdele.numentoolbox.internal;
 
 import com.dwinovo.numen.entity.NumenPlayer;
 import net.minecraft.server.MinecraftServer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 每个同伴身上最多一个的"每刻控制器":开火、滑翔这类要跨很多刻、还要占用身体的事。
  *
  * <p>登记在 {@code ServerTickEvent.Post} 上,由 {@link #tick} 每刻推进。控制器返回 {@code false} 表示它做完了,
- * 这里把它摘掉;抛异常也当做完,免得一个坏控制器每刻刷屏。同伴离场、死亡、被主人打断时,{@link #cancel} 会把它摘掉
- * 并让它在等的那次调用如实失败。
+ * 这里把它摘掉;抛异常也当做完并如实收尾,免得一个坏控制器每刻刷屏、把等它的那次调用永远吊着。同伴离场、死亡、
+ * 被主人打断时,{@link #cancel} 会把它摘掉并让它在等的那次调用如实失败。
+ *
+ * <p>{@link #add} 可能在权限回调里被调用(未必与 {@link #tick} 同一条线程),所以表用并发实现、迭代取弱一致视图:
+ * 遍历途中新装的控制器最迟下一刻生效,不会撞成 {@code ConcurrentModificationException}。
  */
 public final class Tickers {
+
+    private static final Logger LOG = LoggerFactory.getLogger("numen_toolbox");
 
     /** 每刻被推进的一件事。 */
     public interface Ticker {
@@ -23,11 +29,11 @@ public final class Tickers {
         /** @return true 继续,false 结束。 */
         boolean tick(MinecraftServer server);
 
-        /** 不跑了(同伴没了、被打断):把还在等的调用以中断收尾。 */
+        /** 不跑了(同伴没了、被打断、内部出错):把还在等的调用以中断收尾。 */
         default void cancel() {}
     }
 
-    private static final Map<UUID, Ticker> ACTIVE = new HashMap<>();
+    private static final Map<UUID, Ticker> ACTIVE = new ConcurrentHashMap<>();
 
     private Tickers() {}
 
@@ -47,17 +53,23 @@ public final class Tickers {
         if (ACTIVE.isEmpty()) {
             return;
         }
-        Iterator<Map.Entry<UUID, Ticker>> it = ACTIVE.entrySet().iterator();
-        while (it.hasNext()) {
-            Ticker ticker = it.next().getValue();
+        for (Map.Entry<UUID, Ticker> entry : ACTIVE.entrySet()) {
+            Ticker ticker = entry.getValue();
             boolean keep;
             try {
                 keep = ticker.tick(server);
             } catch (Throwable thrown) {
+                LOG.error("numen_toolbox: per-tick controller for {} threw; ending it", entry.getKey(), thrown);
                 keep = false;
+                try {
+                    ticker.cancel();
+                } catch (Throwable ignored) {
+                    // 收尾时再抛就不再纠缠,免得把这一整刻的循环带崩
+                }
             }
             if (!keep) {
-                it.remove();
+                // 只摘掉仍是它的那格,避免误删这一刻里刚换上的新控制器
+                ACTIVE.remove(entry.getKey(), ticker);
             }
         }
     }

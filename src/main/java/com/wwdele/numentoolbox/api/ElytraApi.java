@@ -14,8 +14,6 @@ import com.dwinovo.numen.sdk.SeeAlso;
 import com.dwinovo.numen.sdk.ServerCall;
 import com.wwdele.numentoolbox.internal.GlideController;
 import com.wwdele.numentoolbox.internal.Tickers;
-import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.Optional;
@@ -100,10 +98,5 @@ public final class ElytraApi {
         Tickers.cancelById(her.getUUID());
         her.stopFallFlying();
         return new Landed(!her.isFallFlying());
-    }
-
-    /** 她背上是不是鞘翅。 */
-    static boolean chestIsElytra(NumenPlayer her) {
-        return her.getItemBySlot(EquipmentSlot.CHEST).is(Items.ELYTRA);
     }
 }

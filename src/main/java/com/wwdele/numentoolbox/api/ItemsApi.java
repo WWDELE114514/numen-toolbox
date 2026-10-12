@@ -69,10 +69,13 @@ public final class ItemsApi {
                 continue;
             }
             if (!keyword.isEmpty()) {
+                // 先看 id:命中就不必再解析组件取显示名(大注册表上这一步不便宜)
                 String id = key.toString().toLowerCase(Locale.ROOT);
-                String name = new ItemStack(item).getHoverName().getString().toLowerCase(Locale.ROOT);
-                if (!id.contains(keyword) && !name.contains(keyword)) {
-                    continue;
+                if (!id.contains(keyword)) {
+                    String name = new ItemStack(item).getHoverName().getString().toLowerCase(Locale.ROOT);
+                    if (!name.contains(keyword)) {
+                        continue;
+                    }
                 }
             }
             out.add(row(item, key));
