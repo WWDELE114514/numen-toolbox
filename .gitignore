@@ -17,8 +17,7 @@ run/
 runs/
 
 # 参考源码(仅本地,不提交)
-_reference_minecraft-numen/
-_reference_superbwarfare/
+_reference*/
 
 # 系统
 .DS_Store

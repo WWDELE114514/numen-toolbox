@@ -1,6 +1,6 @@
 package com.wwdele.numentoolbox.internal;
 
-import com.dwinovo.numen.api.entity.NumenPlayer;
+import com.dwinovo.numen.entity.NumenPlayer;
 import net.minecraft.server.MinecraftServer;
 
 import java.util.HashMap;

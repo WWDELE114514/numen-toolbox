@@ -1,11 +1,11 @@
 package com.wwdele.numentoolbox.api;
 
-import com.dwinovo.numen.api.sdk.Doc;
-import com.dwinovo.numen.api.sdk.Example;
-import com.dwinovo.numen.api.sdk.Fn;
-import com.dwinovo.numen.api.sdk.Note;
-import com.dwinovo.numen.api.sdk.SeeAlso;
-import com.dwinovo.numen.api.sdk.ServerCall;
+import com.dwinovo.numen.sdk.Doc;
+import com.dwinovo.numen.sdk.Example;
+import com.dwinovo.numen.sdk.Fn;
+import com.dwinovo.numen.sdk.Note;
+import com.dwinovo.numen.sdk.SeeAlso;
+import com.dwinovo.numen.sdk.ServerCall;
 import net.neoforged.fml.ModList;
 import net.neoforged.neoforgespi.language.IModInfo;
 

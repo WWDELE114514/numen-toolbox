@@ -1,9 +1,9 @@
 package com.wwdele.numentoolbox.internal;
 
-import com.dwinovo.numen.api.agent.script.ApiError;
-import com.dwinovo.numen.api.agent.script.ErrorKind;
-import com.dwinovo.numen.api.entity.NumenPlayer;
-import com.dwinovo.numen.api.sdk.Pending;
+import com.dwinovo.numen.agent.script.ApiError;
+import com.dwinovo.numen.agent.script.ErrorKind;
+import com.dwinovo.numen.entity.NumenPlayer;
+import com.dwinovo.numen.sdk.Pending;
 import com.wwdele.numentoolbox.api.ElytraApi;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -59,7 +59,7 @@ public final class GlideController implements Tickers.Ticker {
         }
         if (!ensureElytra(her)) {
             pending.fail(new ApiError(ErrorKind.NO_MATERIAL, "you carry no elytra",
-                    com.dwinovo.numen.api.sdk.Call.of("toolbox.items.search", "elytra")));
+                    com.dwinovo.numen.sdk.Call.of("toolbox.items.search", "elytra")));
             return false;
         }
 

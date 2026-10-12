@@ -2,6 +2,7 @@ package com.wwdele.numentoolbox;
 
 import com.dwinovo.numen.api.CompanionEvent;
 import com.dwinovo.numen.api.NumenPlugins;
+import com.dwinovo.numen.entity.NumenCommands;
 import com.wwdele.numentoolbox.api.ElytraApi;
 import com.wwdele.numentoolbox.api.ItemsApi;
 import com.wwdele.numentoolbox.api.ModsApi;
@@ -9,6 +10,7 @@ import com.wwdele.numentoolbox.command.ToolboxCommands;
 import com.wwdele.numentoolbox.internal.Tickers;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModList;
+import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 import java.nio.file.Files;
@@ -26,6 +28,8 @@ public final class ToolboxPlugin {
     public static void install(IEventBus gameBus) {
         // 服务端每刻推进开火/滑翔控制器
         gameBus.addListener((ServerTickEvent.Post event) -> Tickers.tick(event.getServer()));
+        // /numen op|deop:挂到言出法随自己的 /numen 根下
+        gameBus.addListener(ToolboxPlugin::registerCommands);
 
         NumenPlugins.register(NumenToolbox.NAMESPACE, numen -> {
             numen.api("mods", "What mods this server has loaded.", ModsApi.class);
@@ -36,10 +40,6 @@ public final class ToolboxPlugin {
             if (ModList.get().isLoaded("superbwarfare")) {
                 com.wwdele.numentoolbox.sbw.SbwSupport.install(numen);
             }
-
-            // /numen op <name> [level] 与 /numen deop <name>
-            numen.command(ToolboxCommands.op());
-            numen.command(ToolboxCommands.deop());
 
             // 随模组发布的技能
             Path skills = ModList.get().getModFileById(NumenToolbox.MOD_ID).getFile().findResource("skills");
@@ -52,5 +52,14 @@ public final class ToolboxPlugin {
             numen.on(CompanionEvent.DEATH, Tickers::cancel);
             numen.on(CompanionEvent.ABORT, Tickers::cancelById);
         });
+    }
+
+    /**
+     * 往言出法随的 {@code /numen} 根下挂 {@code op} 与 {@code deop}。用它自己的 {@code graft}:根由它建、带它的观众规则
+     * (只给玩家、不给她),我们只加两格,和它内建的命令走同一条路,不必也不该自己再注册一个 {@code numen} 根。
+     */
+    private static void registerCommands(RegisterCommandsEvent event) {
+        NumenCommands.graft(event.getDispatcher(), ToolboxCommands.op());
+        NumenCommands.graft(event.getDispatcher(), ToolboxCommands.deop());
     }
 }

@@ -1,6 +1,6 @@
 package com.wwdele.numentoolbox.command;
 
-import com.dwinovo.numen.api.entity.NumenPlayer;
+import com.dwinovo.numen.entity.NumenPlayer;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
