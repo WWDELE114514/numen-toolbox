@@ -62,7 +62,7 @@ public final class GunController implements Tickers.Ticker {
 
         Entity aim = target == null ? null : target.in(her.serverLevel());
         if (aim != null) {
-            her.lookAt(aim, 360.0F, 360.0F);
+            aimAt(her, aim);
         }
 
         if (data.shouldStartReloading(her)) {
@@ -117,5 +117,18 @@ public final class GunController implements Tickers.Ticker {
     private NumenPlayer findSelf(MinecraftServer server) {
         ServerPlayer player = server.getPlayerList().getPlayer(companion);
         return player instanceof NumenPlayer her ? her : null;
+    }
+
+    /** 每刻把她的视线拧向目标:直接设偏航/俯仰,免得依赖某个版本的 lookAt 重载。 */
+    private static void aimAt(NumenPlayer her, Entity aim) {
+        double dx = aim.getX() - her.getX();
+        double dy = aim.getEyeY() - her.getEyeY();
+        double dz = aim.getZ() - her.getZ();
+        double flat = Math.sqrt(dx * dx + dz * dz);
+        float yaw = (float) Math.toDegrees(Math.atan2(dz, dx)) - 90.0F;
+        float pitch = (float) -Math.toDegrees(Math.atan2(dy, flat));
+        her.setYRot(yaw);
+        her.setXRot(pitch);
+        her.setYHeadRot(yaw);
     }
 }

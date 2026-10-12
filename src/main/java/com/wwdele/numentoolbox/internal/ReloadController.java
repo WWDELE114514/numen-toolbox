@@ -66,11 +66,11 @@ public final class ReloadController implements Tickers.Ticker {
         }
 
         if (!data.reloading()) {
-            pending.complete(new SbwApi.Reloaded(data.getAmmo().get()));
+            pending.complete(new SbwApi.Reloaded(data.ammo.get()));
             return false;
         }
         if (++ticks > MAX_TICKS) {
-            pending.complete(new SbwApi.Reloaded(data.getAmmo().get()));
+            pending.complete(new SbwApi.Reloaded(data.ammo.get()));
             return false;
         }
         return true;

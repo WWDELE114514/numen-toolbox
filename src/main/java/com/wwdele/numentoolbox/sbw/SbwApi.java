@@ -2,6 +2,7 @@ package com.wwdele.numentoolbox.sbw;
 
 import com.atsuishio.superbwarfare.data.gun.GunData;
 import com.atsuishio.superbwarfare.data.gun.GunProp;
+import com.atsuishio.superbwarfare.data.gun.ProjectileInfo;
 import com.atsuishio.superbwarfare.item.gun.GunItem;
 import com.dwinovo.numen.agent.script.ApiError;
 import com.dwinovo.numen.agent.script.ErrorKind;
@@ -143,13 +144,22 @@ public final class SbwApi {
         ResourceLocation key = BuiltInRegistries.ITEM.getKey(item);
         GunData data = GunData.from(new ItemStack(item));
         String name = data.get(GunProp.NAME);
+        ProjectileInfo projectile = data.get(GunProp.PROJECTILE);
         return new Weapon(key.toString(),
                 name != null ? name : new ItemStack(item).getHoverName().getString(),
-                data.get(GunProp.DAMAGE),
-                data.get(GunProp.MAGAZINE),
-                data.get(GunProp.RPM),
-                data.get(GunProp.VELOCITY),
-                data.get(GunProp.RANGE),
-                data.get(GunProp.PROJECTILE));
+                num(data.get(GunProp.DAMAGE)),
+                num(data.get(GunProp.MAGAZINE)),
+                num(data.get(GunProp.RPM)),
+                num(data.get(GunProp.VELOCITY)),
+                num(data.get(GunProp.RANGE)),
+                projectile != null ? projectile.getItemId() : null);
+    }
+
+    private static double num(Double value) {
+        return value == null ? 0.0 : value;
+    }
+
+    private static int num(Integer value) {
+        return value == null ? 0 : value;
     }
 }
