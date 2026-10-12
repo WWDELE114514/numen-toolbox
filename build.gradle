@@ -53,10 +53,11 @@ neoForge {
 }
 
 dependencies {
-    // 精简 Numen API:运行时由玩家安装的言出法随提供,本模组不携带它的代码。
-    // 只取 :api 这一个精简 jar:它的 pom 还声明着 pathing 等内部模块,而那些模块并不单独发布。
-    compileOnly("com.dwinovo.numen:numen-api-neoforge-${project.minecraft_version}:${project.numen_api_version}:api") {
-        transitive = false
+    // Numen API:运行时由玩家安装的言出法随提供,本模组不携带它的代码。
+    // 0.1.4 系里精简 :api 是空的,且依赖信息引用了并未单独发布的寻路模块,所以取完整 API 并把那条引用排掉
+    // (完整 API 里已带着寻路的类)。自 0.1.5 起可改回 :api 精简坐标。
+    compileOnly("com.dwinovo.numen:numen-api-neoforge-${project.minecraft_version}:${project.numen_api_version}") {
+        exclude group: 'com.dwinovo.numen', module: "numen-pathing-${project.minecraft_version}"
     }
     // 卓越前线:编译期对着它的服务端 API;没装它的玩家本模组照常可用
     compileOnly "maven.modrinth:superb-warfare:${project.superbwarfare_version}"
