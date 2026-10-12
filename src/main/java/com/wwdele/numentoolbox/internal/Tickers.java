@@ -41,7 +41,7 @@ public final class Tickers {
     public static void add(UUID companion, Ticker ticker) {
         Ticker old = ACTIVE.put(companion, ticker);
         if (old != null) {
-            old.cancel();
+            cancelQuietly(old);
         }
     }
 
@@ -61,11 +61,7 @@ public final class Tickers {
             } catch (Throwable thrown) {
                 LOG.error("numen_toolbox: per-tick controller for {} threw; ending it", entry.getKey(), thrown);
                 keep = false;
-                try {
-                    ticker.cancel();
-                } catch (Throwable ignored) {
-                    // 收尾时再抛就不再纠缠,免得把这一整刻的循环带崩
-                }
+                cancelQuietly(ticker);
             }
             if (!keep) {
                 // 只摘掉仍是它的那格,避免误删这一刻里刚换上的新控制器
@@ -83,7 +79,19 @@ public final class Tickers {
     public static void cancelById(UUID companion) {
         Ticker ticker = ACTIVE.remove(companion);
         if (ticker != null) {
+            cancelQuietly(ticker);
+        }
+    }
+
+    /**
+     * 让一个控制器收尾。它可能那一刻刚好定局(完成或失败过),那次调用自有结论,这里再抛就不再纠缠:收尾的异常若从这里冒出去,
+     * 尤其 {@link #add} 是在权限回调那条未必与 {@link #tick} 同线程的路上被调用的,没人接住会把服务器整刻带崩。
+     */
+    private static void cancelQuietly(Ticker ticker) {
+        try {
             ticker.cancel();
+        } catch (Throwable ignored) {
+            // 已经定局,不纠缠
         }
     }
 }
