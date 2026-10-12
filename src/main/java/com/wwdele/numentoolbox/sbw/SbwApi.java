@@ -50,7 +50,7 @@ public final class SbwApi {
                          @Doc("Rounds per minute.") int rpm,
                          @Doc("Muzzle velocity.") double velocity,
                          @Doc("Effective range, in blocks.") int range,
-                         @Doc("The projectile it fires.") String projectile) {}
+                         @Doc("The projectile it fires, if any.") Optional<String> projectile) {}
 
     @Fn("List every SuperbWarfare weapon on this server.")
     @Example("for _, w in ipairs(toolbox.sbw.weapons()) do print(w.id, w.name, w.damage, w.magazine) end")
@@ -115,9 +115,9 @@ public final class SbwApi {
             start.run();
             return pending;
         }
-        return call.authorize(Action.attack(target)).then(v -> {
+        return call.authorize(Action.attack(target)).thenWait(v -> {
             start.run();
-            return null;
+            return pending;
         });
     }
 
@@ -152,7 +152,7 @@ public final class SbwApi {
                 num(data.get(GunProp.RPM)),
                 num(data.get(GunProp.VELOCITY)),
                 num(data.get(GunProp.RANGE)),
-                projectile != null ? projectile.getItemId() : null);
+                projectile == null ? Optional.empty() : Optional.ofNullable(projectile.getItemId()));
     }
 
     private static double num(Double value) {
