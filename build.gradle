@@ -1,0 +1,100 @@
+plugins {
+    id 'net.neoforged.moddev' version '2.0.141'
+    id 'java'
+}
+
+version = project.mod_version
+group = project.mod_group
+
+base {
+    archivesName = project.mod_id
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(21)
+}
+
+repositories {
+    mavenCentral()
+    // Numen API 的静态 maven(经 raw.githubusercontent 直接引用)
+    maven {
+        name = 'NumenMaven'
+        url = 'https://raw.githubusercontent.com/Dwinovo/numen-maven/main'
+    }
+    // 卓越前线(SuperbWarfare)发在 Modrinth
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = 'Modrinth'
+                url = 'https://api.modrinth.com/maven'
+            }
+        }
+        filter { includeGroup 'maven.modrinth' }
+    }
+}
+
+neoForge {
+    version = project.neoforge_version
+
+    runs {
+        client {
+            client()
+        }
+        server {
+            server()
+        }
+    }
+
+    mods {
+        "${project.mod_id}" {
+            sourceSet sourceSets.main
+        }
+    }
+}
+
+dependencies {
+    // 精简 Numen API:运行时由玩家安装的言出法随提供,本模组不携带它的代码
+    compileOnly "com.dwinovo.numen:numen-api-neoforge-${project.minecraft_version}:${project.numen_api_version}:api"
+    // 卓越前线:编译期对着它的服务端 API;没装它的玩家本模组照常可用
+    compileOnly "maven.modrinth:superb-warfare:${project.superbwarfare_version}"
+    // 卓越前线是 Kotlin 写的,编译期需要 Kotlin 标准库
+    compileOnly "org.jetbrains.kotlin:kotlin-stdlib:${project.kotlin_stdlib_version}"
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 21
+}
+
+// neoforge.mods.toml 里的占位符展开
+tasks.named('processResources', ProcessResources).configure {
+    def expandProps = [
+            mod_id                        : project.mod_id,
+            mod_name                      : project.mod_name,
+            mod_version                   : project.mod_version,
+            mod_author                    : project.mod_author,
+            mod_license                   : project.mod_license,
+            mod_description               : project.mod_description,
+            minecraft_version             : project.minecraft_version,
+            minecraft_version_range       : project.minecraft_version_range,
+            neoforge_version              : project.neoforge_version,
+            neoforge_loader_version_range : project.neoforge_loader_version_range,
+    ]
+    inputs.properties(expandProps)
+    filesMatching(['META-INF/neoforge.mods.toml']) {
+        expand expandProps
+    }
+}
+
+tasks.named('jar', Jar).configure {
+    manifest {
+        attributes([
+                'Specification-Title'     : project.mod_id,
+                'Specification-Vendor'    : project.mod_author,
+                'Specification-Version'   : '1',
+                'Implementation-Title'    : project.mod_name,
+                'Implementation-Version'  : project.mod_version,
+                'Implementation-Vendor'   : project.mod_author,
+        ])
+    }
+}

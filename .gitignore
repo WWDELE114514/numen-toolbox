@@ -1,0 +1,25 @@
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.eclipse/
+.classpath
+.project
+.settings/
+
+# 本地运行目录
+run/
+runs/
+
+# 参考源码(仅本地,不提交)
+_reference_minecraft-numen/
+_reference_superbwarfare/
+
+# 系统
+.DS_Store
+Thumbs.db
