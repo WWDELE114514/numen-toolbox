@@ -13,7 +13,6 @@ import com.dwinovo.numen.sdk.SeeAlso;
 import com.dwinovo.numen.sdk.ServerCall;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.Containers;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.p3pp3rf1y.sophisticatedbackpacks.backpack.wrapper.BackpackWrapper;
@@ -294,12 +293,13 @@ public final class BackpackApi {
         return n;
     }
 
+    /** 搬进她自己那背包;满了就掉在脚边,和玩家一样。 */
     private static void give(NumenPlayer her, ItemStack stack) {
         if (stack.isEmpty()) {
             return;
         }
         if (!her.getInventory().add(stack)) {
-            Containers.drop(her.getInventory(), stack, false);
+            her.spawnAtLocation(stack, false);
         }
     }
 
