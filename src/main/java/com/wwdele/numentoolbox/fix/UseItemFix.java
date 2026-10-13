@@ -63,7 +63,6 @@ public final class UseItemFix {
         try {
             VarHandle handle = MethodHandles.privateLookupIn(ApiFunction.class, MethodHandles.lookup())
                     .findVarHandle(ApiFunction.class, RETURNS, Codec.class);
-            handle.setAccessible(true);
             handle.set(function, codec);
             return true;
         } catch (Throwable refused) {
@@ -78,7 +77,6 @@ public final class UseItemFix {
             field.setAccessible(true);
             MethodHandles.Lookup trusted = (MethodHandles.Lookup) field.get(null);
             VarHandle handle = trusted.findVarHandle(ApiFunction.class, RETURNS, Codec.class);
-            handle.setAccessible(true);
             handle.set(function, codec);
             return true;
         } catch (Throwable refused) {
