@@ -299,7 +299,8 @@ public final class BackpackApi {
             return;
         }
         if (!her.getInventory().add(stack)) {
-            her.spawnAtLocation(stack, false);
+            her.level().addFreshEntity(new net.minecraft.world.entity.item.ItemEntity(her.level(),
+                    her.getX(), her.getEyeY(), her.getZ(), stack));
         }
     }
 
