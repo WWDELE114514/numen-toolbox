@@ -238,7 +238,7 @@ public final class BackpackApi {
                         Call.of("toolbox.items.search", "backpack")));
     }
 
-    private static Pack row(IBackpackWrapper wrapper, String where) {
+    private static BackpackInfo row(IBackpackWrapper wrapper, String where) {
         InventoryHandler handler = wrapper.getInventoryHandler();
         int filled = 0;
         for (int slot = 0; slot < handler.getSlots(); slot++) {
