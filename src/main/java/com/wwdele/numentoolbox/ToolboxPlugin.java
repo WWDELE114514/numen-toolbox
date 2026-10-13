@@ -7,6 +7,7 @@ import com.wwdele.numentoolbox.api.ElytraApi;
 import com.wwdele.numentoolbox.api.ItemsApi;
 import com.wwdele.numentoolbox.api.ModsApi;
 import com.wwdele.numentoolbox.command.ToolboxCommands;
+import com.wwdele.numentoolbox.fix.UseItemFix;
 import com.wwdele.numentoolbox.internal.Tickers;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModList;
@@ -23,11 +24,19 @@ import java.nio.file.Path;
  */
 public final class ToolboxPlugin {
 
+    /** 言出法随的 use.item 返回类型补丁装上没有;它登记完函数才能补,所以挪到服务器第一次刻。 */
+    private static volatile boolean useItemFixApplied;
+
     private ToolboxPlugin() {}
 
     public static void install(IEventBus gameBus) {
-        // 服务端每刻推进开火/滑翔控制器
-        gameBus.addListener((ServerTickEvent.Post event) -> Tickers.tick(event.getServer()));
+        // 服务端每刻推进开火/滑翔控制器,并补一次言出法随 use.item 的返回类型 bug
+        gameBus.addListener((ServerTickEvent.Post event) -> {
+            if (!useItemFixApplied) {
+                useItemFixApplied = UseItemFix.install();
+            }
+            Tickers.tick(event.getServer());
+        });
         // /numen op|deop:挂到言出法随自己的 /numen 根下
         gameBus.addListener(ToolboxPlugin::registerCommands);
 
