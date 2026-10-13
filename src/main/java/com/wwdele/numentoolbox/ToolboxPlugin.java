@@ -50,6 +50,11 @@ public final class ToolboxPlugin {
                 com.wwdele.numentoolbox.sbw.SbwSupport.install(numen);
             }
 
+            // 精妙背包的存储按 UUID 存在世界里,原版的读容器看不见它,单独给一组工具
+            if (ModList.get().isLoaded("sophisticatedbackpacks")) {
+                com.wwdele.numentoolbox.pack.PackSupport.install(numen);
+            }
+
             // 随模组发布的技能
             Path skills = ModList.get().getModFileById(NumenToolbox.MOD_ID).getFile().findResource("skills");
             if (Files.isDirectory(skills)) {

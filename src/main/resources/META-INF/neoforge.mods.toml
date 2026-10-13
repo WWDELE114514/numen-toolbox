@@ -40,3 +40,10 @@ logoFile="numen_toolbox.png"
     versionRange="*"
     ordering="AFTER"
     side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="sophisticatedbackpacks"
+    type="optional"
+    versionRange="*"
+    ordering="AFTER"
+    side="BOTH"
