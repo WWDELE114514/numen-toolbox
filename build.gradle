@@ -31,6 +31,8 @@ repositories {
         }
         filter { includeGroup 'maven.modrinth' }
     }
+    // 精妙背包与它的前置精妙核心:作者只发 GitHub Packages(要令牌),这里用随仓库带的本地 jar
+    flatDir { dirs 'libs' }
 }
 
 neoForge {
@@ -61,9 +63,9 @@ dependencies {
     }
     // 卓越前线:编译期对着它的服务端 API;没装它的玩家本模组照常可用
     compileOnly "maven.modrinth:superb-warfare:${project.superbwarfare_version}"
-    // 精妙背包(含前置精妙核心):编译期对着它的背包存储 API;只有装了它的玩家才用得上这一组
-    compileOnly "maven.modrinth:sophisticated-backpacks:${project.sophisticatedbackpacks_version}"
-    compileOnly "maven.modrinth:sophisticated-core:${project.sophisticatedcore_version}"
+    // 精妙背包(含前置精妙核心):编译期对着它的背包存储 API;只有装了它的玩家才用得上这一组。
+    // 从 GitHub Packages 取不到(要作者令牌),所以带了本地 jar;换了版本就换 libs/ 里的 jar
+    compileOnly fileTree(dir: 'libs', include: ['sophisticatedbackpacks-*.jar', 'sophisticatedcore-*.jar'])
     // 卓越前线是 Kotlin 写的,编译期需要 Kotlin 标准库
     compileOnly "org.jetbrains.kotlin:kotlin-stdlib:${project.kotlin_stdlib_version}"
 }
