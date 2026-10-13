@@ -67,13 +67,13 @@ public final class SbwApi {
     }
 
     /** 查哪把枪。 */
-    public record Info(@Doc("The weapon id, superbwarfare:ak_47.") String id) {}
+    public record WeaponInfo(@Doc("The weapon id, superbwarfare:ak_47.") String id) {}
 
     @Fn("One SuperbWarfare weapon by its id.")
     @Example("toolbox.sbw.info(\"superbwarfare:ak_47\")")
     @Note("Instant and read-only. Fails with not_found when no SuperbWarfare weapon has that id.")
     @SeeAlso({"toolbox.sbw.weapons", "toolbox.sbw.fire"})
-    public static Weapon info(ServerCall call, Info args) {
+    public static Weapon info(ServerCall call, WeaponInfo args) {
         ResourceLocation key = ResourceLocation.tryParse(
                 args.id().contains(":") ? args.id() : "superbwarfare:" + args.id());
         if (key == null || !BuiltInRegistries.ITEM.containsKey(key)

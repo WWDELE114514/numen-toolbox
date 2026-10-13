@@ -43,7 +43,7 @@ public final class ItemsApi {
                         @Doc("Its max stack size.") int maxStack) {}
 
     /** 搜什么、在哪个模组里搜、要几条。 */
-    public record Search(@Doc("Keyword matched against the id and name, case-insensitive; empty lists the mod's items.")
+    public record ItemSearch(@Doc("Keyword matched against the id and name, case-insensitive; empty lists the mod's items.")
                          String keyword,
                          @Doc("Only this mod's items.") @Omitted("every mod")
                          Optional<String> mod,
@@ -58,7 +58,7 @@ public final class ItemsApi {
     @Note("Hand the id on: numen.gear.hold(it.id) takes it in hand, numen.use.item uses it, toolbox.items.info(it.id) "
             + "explains one.")
     @SeeAlso({"toolbox.items.info", "toolbox.items.of_mod", "toolbox.mods.list"})
-    public static List<Entry> search(ServerCall call, Search args) {
+    public static List<Entry> search(ServerCall call, ItemSearch args) {
         String keyword = args.keyword().toLowerCase(Locale.ROOT).strip();
         String mod = args.mod().map(s -> s.toLowerCase(Locale.ROOT).strip()).orElse(null);
         int limit = Math.clamp((long) args.limit().orElse(DEFAULT_LIMIT), 1, MAX_LIMIT);

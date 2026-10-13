@@ -45,14 +45,14 @@ public final class BackpackApi {
 
     /** 一个背包里的一样东西。 */
     @Doc("One kind of item inside one backpack.")
-    public record Entry(@Doc("The item id, minecraft:iron_ingot.") String item,
+    public record BackpackItem(@Doc("The item id, minecraft:iron_ingot.") String item,
                         @Doc("Its display name.") String name,
                         @Doc("How many of it in this backpack.") int count,
                         @Doc("The slot it first sits in.") int slot) {}
 
     /** 一个背包的概况。 */
     @Doc("One backpack.")
-    public record Pack(@Doc("Its item id, sophisticatedbackpacks:backpack.") String id,
+    public record BackpackInfo(@Doc("Its item id, sophisticatedbackpacks:backpack.") String id,
                        @Doc("Its display name.") String name,
                        @Doc("Where it is: held, worn or open.") String where,
                        @Doc("How many storage slots it has.") int slots,
@@ -60,12 +60,12 @@ public final class BackpackApi {
                        @Doc("Whether it has an upgrade slot taken.") boolean upgraded) {}
 
     /** 读哪一个背包:手上拿的、穿在身上的、界面上开着的;不写就是手上拿的。 */
-    public record Which(@Doc("held the one in your hand, worn the one on your chest, open the one whose window you "
+    public record FromWhere(@Doc("held the one in your hand, worn the one on your chest, open the one whose window you "
                              + "have open.")
                         @Omitted("held") Optional<String> where) {}
 
     /** 装什么、装哪一件、往哪个背包、装几件。 */
-    public record Put(@Doc("The item to put in.")
+    public record Stow(@Doc("The item to put in.")
                       Item item,
                       @Doc("Which backpack: held, worn or open.")
                       @Omitted("held") Optional<String> where,
@@ -73,7 +73,7 @@ public final class BackpackApi {
                       @Omitted("all of them you carry") Optional<Integer> count) {}
 
     /** 拿什么、从哪个背包、拿几件。 */
-    public record Take(@Doc("The item to take out.")
+    public record Fetch(@Doc("The item to take out.")
                        Item item,
                        @Doc("Which backpack: held, worn or open.")
                        @Omitted("held") Optional<String> where,
@@ -82,7 +82,7 @@ public final class BackpackApi {
 
     /** 拿了几件。 */
     @Doc("How many items went in or came out.")
-    public record Moved(@Doc("How many went in or came out.") int moved,
+    public record Packed(@Doc("How many went in or came out.") int moved,
                         @Doc("How many it could not do, none left inside when taking, no room when putting.")
                         int left) {}
 
@@ -94,9 +94,9 @@ public final class BackpackApi {
     @Note("精妙背包的存储按 UUID 存在世界里,不在物品自身,所以 numen.gui.view 与 toolbox.items 都读不到它;这一组"
             + "从精妙背包自己要出它的存储来读。")
     @SeeAlso({"toolbox.backpack.items", "toolbox.backpack.put", "toolbox.backpack.take", "toolbox.items.search"})
-    public static List<Pack> packs(ServerCall call) {
+    public static List<BackpackInfo> packs(ServerCall call) {
         NumenPlayer her = call.her();
-        List<Pack> out = new ArrayList<>();
+        List<BackpackInfo> out = new ArrayList<>();
         held(her).ifPresent(wrapper -> out.add(row(wrapper, "held")));
         worn(her).ifPresent(wrapper -> out.add(row(wrapper, "worn")));
         open(her).ifPresent(wrapper -> out.add(row(wrapper, "open")));
@@ -110,13 +110,13 @@ public final class BackpackApi {
     @Note("Instant and read-only. Empty means an empty backpack; pick where with held, worn or open. Slots are the "
             + "backpack's own storage slots, not your inventory's.")
     @SeeAlso({"toolbox.backpack.packs", "numen.inv.items", "toolbox.backpack.take"})
-    public static List<Entry> items(ServerCall call, Which args) {
+    public static List<BackpackItem> items(ServerCall call, FromWhere args) {
         InventoryHandler handler = handler(call.her(), args.where());
-        List<Entry> out = new ArrayList<>();
+        List<BackpackItem> out = new ArrayList<>();
         for (int slot = 0; slot < handler.getSlots() && out.size() < MAX_LIST; slot++) {
             ItemStack stack = handler.getStackInSlot(slot);
             if (!stack.isEmpty()) {
-                out.add(new Entry(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString(),
+                out.add(new BackpackItem(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString(),
                         stack.getHoverName().getString(), stack.getCount(), slot));
             }
         }
@@ -130,7 +130,7 @@ public final class BackpackApi {
             + "Upgrades raise the limit of what a single slot takes.")
     @Note("Fails with not_found when you carry none of it, and with no_material when that backpack will not take it.")
     @SeeAlso({"toolbox.backpack.take", "toolbox.backpack.packs", "numen.inv.items"})
-    public static Moved put(ServerCall call, Put args) {
+    public static Packed put(ServerCall call, Stow args) {
         InventoryHandler handler = handler(call.her(), args.where());
         int left = args.count().orElse(Integer.MAX_VALUE);
         int moved = 0;
@@ -157,7 +157,7 @@ public final class BackpackApi {
                             : "you carry none of " + name(args.item()),
                     carries ? Call.of("toolbox.backpack.packs") : Call.of("toolbox.items.search", name(args.item())));
         }
-        return new Moved(moved, Math.max(0, carriedCount(call.her(), args.item())));
+        return new Packed(moved, Math.max(0, carriedCount(call.her(), args.item())));
     }
 
     @Fn("Take items out of one of your backpacks into your inventory.")
@@ -167,7 +167,7 @@ public final class BackpackApi {
             + "Taking something out of a backpack you do not own asks your owner first.")
     @Note("Fails with not_found when that backpack holds none of it.")
     @SeeAlso({"toolbox.backpack.put", "toolbox.backpack.items", "numen.inv.items"})
-    public static Moved take(ServerCall call, Take args) {
+    public static Packed take(ServerCall call, Fetch args) {
         InventoryHandler handler = handler(call.her(), args.where());
         int want = args.count().orElse(Integer.MAX_VALUE);
         int moved = 0;
@@ -186,7 +186,7 @@ public final class BackpackApi {
             throw new ApiError(ErrorKind.NOT_FOUND, "that backpack holds none of " + name(args.item()),
                     Call.of("toolbox.backpack.items"));
         }
-        return new Moved(moved, heldCount(handler, args.item()));
+        return new Packed(moved, heldCount(handler, args.item()));
     }
 
     // ---- 背包在哪 ----
@@ -255,7 +255,7 @@ public final class BackpackApi {
             }
         }
         ItemStack stack = wrapper.getBackpack();
-        return new Pack(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString(), stack.getHoverName().getString(),
+        return new BackpackInfo(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString(), stack.getHoverName().getString(),
                 where, handler.getSlots(), filled, upgraded);
     }
 
