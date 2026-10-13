@@ -1,4 +1,4 @@
-﻿package com.wwdele.numextra.internal;
+package com.wwdele.numextra.internal;
 
 import com.dwinovo.numen.entity.NumenPlayer;
 import net.minecraft.server.MinecraftServer;

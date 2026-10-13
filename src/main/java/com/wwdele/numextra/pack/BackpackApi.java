@@ -1,4 +1,4 @@
-﻿package com.wwdele.numextra.pack;
+package com.wwdele.numextra.pack;
 
 import com.dwinovo.numen.agent.script.ApiError;
 import com.dwinovo.numen.agent.script.ErrorKind;

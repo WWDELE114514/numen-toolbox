@@ -1,4 +1,4 @@
-﻿package com.wwdele.numextra.command;
+package com.wwdele.numextra.command;
 
 import com.dwinovo.numen.entity.NumenPlayer;
 import com.mojang.brigadier.arguments.IntegerArgumentType;

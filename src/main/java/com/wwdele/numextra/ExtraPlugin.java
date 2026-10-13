@@ -1,4 +1,4 @@
-﻿package com.wwdele.numextra;
+package com.wwdele.numextra;
 
 import com.dwinovo.numen.api.CompanionEvent;
 import com.dwinovo.numen.api.NumenPlugins;

@@ -1,4 +1,4 @@
-﻿package com.wwdele.numextra.sbw;
+package com.wwdele.numextra.sbw;
 
 import com.atsuishio.superbwarfare.data.gun.GunData;
 import com.atsuishio.superbwarfare.data.gun.GunProp;

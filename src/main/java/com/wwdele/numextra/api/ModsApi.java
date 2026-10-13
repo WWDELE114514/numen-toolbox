@@ -1,4 +1,4 @@
-﻿package com.wwdele.numextra.api;
+package com.wwdele.numextra.api;
 
 import com.dwinovo.numen.sdk.Doc;
 import com.dwinovo.numen.sdk.Example;

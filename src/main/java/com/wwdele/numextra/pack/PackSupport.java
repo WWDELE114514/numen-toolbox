@@ -1,4 +1,4 @@
-﻿package com.wwdele.numextra.pack;
+package com.wwdele.numextra.pack;
 
 import com.dwinovo.numen.api.NumenApi;
 
