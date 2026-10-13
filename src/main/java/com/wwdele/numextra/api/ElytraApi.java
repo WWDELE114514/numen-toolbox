@@ -1,4 +1,4 @@
-package com.wwdele.numentoolbox.api;
+﻿package com.wwdele.numextra.api;
 
 import com.dwinovo.numen.agent.script.ApiError;
 import com.dwinovo.numen.agent.script.ErrorKind;
@@ -12,8 +12,8 @@ import com.dwinovo.numen.sdk.Omitted;
 import com.dwinovo.numen.sdk.Pending;
 import com.dwinovo.numen.sdk.SeeAlso;
 import com.dwinovo.numen.sdk.ServerCall;
-import com.wwdele.numentoolbox.internal.GlideController;
-import com.wwdele.numentoolbox.internal.Tickers;
+import com.wwdele.numextra.internal.GlideController;
+import com.wwdele.numextra.internal.Tickers;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.Optional;

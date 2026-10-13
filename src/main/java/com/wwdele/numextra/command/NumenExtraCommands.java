@@ -1,4 +1,4 @@
-package com.wwdele.numentoolbox.command;
+﻿package com.wwdele.numextra.command;
 
 import com.dwinovo.numen.entity.NumenPlayer;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -25,18 +25,18 @@ import java.util.List;
  *
  * <p>名字要在线的同伴里找:op 列表按 {@code GameProfile} 存,得先拿到她的 profile。
  */
-public final class ToolboxCommands {
+public final class NumenExtraCommands {
 
     /** 原版 {@code /op} 默认给的等级。 */
     private static final int DEFAULT_LEVEL = 4;
 
-    private ToolboxCommands() {}
+    private NumenExtraCommands() {}
 
     public static LiteralArgumentBuilder<CommandSourceStack> op() {
         return Commands.literal("op")
                 .requires(source -> source.hasPermission(3))
                 .then(Commands.argument("name", StringArgumentType.word())
-                        .suggests(ToolboxCommands::suggestCompanions)
+                        .suggests(NumenExtraCommands::suggestCompanions)
                         .executes(context -> setOp(context, DEFAULT_LEVEL))
                         .then(Commands.argument("level", IntegerArgumentType.integer(1, 4))
                                 .executes(context -> setOp(context,
@@ -47,8 +47,8 @@ public final class ToolboxCommands {
         return Commands.literal("deop")
                 .requires(source -> source.hasPermission(3))
                 .then(Commands.argument("name", StringArgumentType.word())
-                        .suggests(ToolboxCommands::suggestCompanions)
-                        .executes(ToolboxCommands::deop));
+                        .suggests(NumenExtraCommands::suggestCompanions)
+                        .executes(NumenExtraCommands::deop));
     }
 
     private static int setOp(CommandContext<CommandSourceStack> context, int level) {

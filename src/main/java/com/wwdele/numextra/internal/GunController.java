@@ -1,4 +1,4 @@
-package com.wwdele.numentoolbox.internal;
+﻿package com.wwdele.numextra.internal;
 
 import com.atsuishio.superbwarfare.data.gun.GunData;
 import com.atsuishio.superbwarfare.data.gun.GunProp;
@@ -9,7 +9,7 @@ import com.dwinovo.numen.entity.NumenPlayer;
 import com.dwinovo.numen.sdk.Call;
 import com.dwinovo.numen.sdk.EntityRef;
 import com.dwinovo.numen.sdk.Pending;
-import com.wwdele.numentoolbox.sbw.SbwApi;
+import com.wwdele.numextra.sbw.SbwApi;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;

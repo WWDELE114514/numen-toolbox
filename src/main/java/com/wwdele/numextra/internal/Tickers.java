@@ -1,4 +1,4 @@
-package com.wwdele.numentoolbox.internal;
+﻿package com.wwdele.numextra.internal;
 
 import com.dwinovo.numen.entity.NumenPlayer;
 import net.minecraft.server.MinecraftServer;
@@ -21,7 +21,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class Tickers {
 
-    private static final Logger LOG = LoggerFactory.getLogger("numen_toolbox");
+    private static final Logger LOG = LoggerFactory.getLogger("numen_extra");
 
     /** 每刻被推进的一件事。 */
     public interface Ticker {
@@ -59,7 +59,7 @@ public final class Tickers {
             try {
                 keep = ticker.tick(server);
             } catch (Throwable thrown) {
-                LOG.error("numen_toolbox: per-tick controller for {} threw; ending it", entry.getKey(), thrown);
+                LOG.error("numen_extra: per-tick controller for {} threw; ending it", entry.getKey(), thrown);
                 keep = false;
                 cancelQuietly(ticker);
             }

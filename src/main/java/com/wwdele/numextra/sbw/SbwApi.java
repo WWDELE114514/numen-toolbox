@@ -1,4 +1,4 @@
-package com.wwdele.numentoolbox.sbw;
+﻿package com.wwdele.numextra.sbw;
 
 import com.atsuishio.superbwarfare.data.gun.GunData;
 import com.atsuishio.superbwarfare.data.gun.GunProp;
@@ -18,9 +18,9 @@ import com.dwinovo.numen.sdk.Omitted;
 import com.dwinovo.numen.sdk.Pending;
 import com.dwinovo.numen.sdk.SeeAlso;
 import com.dwinovo.numen.sdk.ServerCall;
-import com.wwdele.numentoolbox.internal.GunController;
-import com.wwdele.numentoolbox.internal.ReloadController;
-import com.wwdele.numentoolbox.internal.Tickers;
+import com.wwdele.numextra.internal.GunController;
+import com.wwdele.numextra.internal.ReloadController;
+import com.wwdele.numextra.internal.Tickers;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;

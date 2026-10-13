@@ -11,7 +11,7 @@ authors="${mod_author}"
 description='''
 ${mod_description}
 '''
-logoFile="numen_toolbox.png"
+logoFile="numen_extra.png"
 
 [[dependencies.${mod_id}]]
     modId="neoforge"

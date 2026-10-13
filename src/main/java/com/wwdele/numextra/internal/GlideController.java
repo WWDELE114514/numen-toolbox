@@ -1,10 +1,10 @@
-package com.wwdele.numentoolbox.internal;
+﻿package com.wwdele.numextra.internal;
 
 import com.dwinovo.numen.agent.script.ApiError;
 import com.dwinovo.numen.agent.script.ErrorKind;
 import com.dwinovo.numen.entity.NumenPlayer;
 import com.dwinovo.numen.sdk.Pending;
-import com.wwdele.numentoolbox.api.ElytraApi;
+import com.wwdele.numextra.api.ElytraApi;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EquipmentSlot;
