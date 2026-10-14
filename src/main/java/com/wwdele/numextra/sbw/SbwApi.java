@@ -84,11 +84,14 @@ public final class SbwApi {
         return row(BuiltInRegistries.ITEM.get(key));
     }
 
-    /** 打谁、打几发。 */
+    /** 打谁、打几发、用哪种火控。 */
     public record Fire(@Doc("Aim at this entity first.")
                        @Omitted("shoot straight ahead") Optional<EntityRef> target,
                        @Doc("How many rounds to fire.")
-                       @Omitted("1") Optional<Integer> count) {}
+                       @Omitted("1") Optional<Integer> count,
+                       @Doc("How to aim: ballistic leads the shot by the shell's flight time (best on a moving "
+                               + "target), direct points at the target, visual only turns your view.")
+                       @Omitted("ballistic") Optional<String> aim) {}
 
     /** 打出去几发。 */
     public record Fired(@Doc("Rounds actually fired.") int shots) {}
@@ -96,7 +99,12 @@ public final class SbwApi {
     @Fn("Fire the SuperbWarfare weapon you are holding.")
     @Example("toolbox.sbw.fire()")
     @Example("toolbox.sbw.fire({target = 184, count = 5})")
-    @Note("A body job: it bolts, reloads when needed and fires for you, then returns how many rounds went out.")
+    @Example("toolbox.sbw.fire({target = 184, count = 20, aim = \"ballistic\"})")
+    @Note("A body job: it bolts, reloads when needed and fires for you, then returns how many rounds went out. "
+            + "The pace follows the gun itself — the first round goes out the moment it is ready, and a dropped "
+            + "frame does not cost you rounds.")
+    @Note("Aiming: ballistic leads the shot by the shell's flight time and is best on a moving target; direct "
+            + "points straight at it; visual only turns your view. Pick one per call.")
     @Note("Naming a target asks your owner first (attack). An empty weapon fails with no_material — call "
             + "toolbox.sbw.reload first, or toolbox.items.search for ammo.")
     @SeeAlso({"toolbox.sbw.reload", "toolbox.sbw.info", "toolbox.items.search"})
@@ -106,13 +114,21 @@ public final class SbwApi {
             throw new ApiError(ErrorKind.NO_MATERIAL, "you are not holding a SuperbWarfare weapon",
                     Call.of("toolbox.items.of_mod", "superbwarfare"));
         }
+        GunController.Style style = GunController.Style.from(args.aim().orElse(null));
+        if (style == null) {
+            throw new ApiError(ErrorKind.BAD_ARGUMENT,
+                    "aim must be ballistic, direct or visual, not '" + args.aim().orElse("") + "'",
+                    Call.of("toolbox.sbw.fire"));
+        }
         int count = Math.clamp((long) args.count().orElse(1), 1, 200);
         Entity target = args.target().map(call::entity).orElse(null);
         Pending<Fired> pending = Pending.create();
         Runnable start = () -> Tickers.add(her.getUUID(),
-                new GunController(her.getUUID(), pending, count, target == null ? null : EntityRef.of(target)));
+                new GunController(her.getUUID(), pending, count, target == null ? null : EntityRef.of(target),
+                        style));
         if (target == null) {
             start.run();
+            return pending;
             return pending;
         }
         return call.authorize(Action.attack(target)).thenWait(v -> {
