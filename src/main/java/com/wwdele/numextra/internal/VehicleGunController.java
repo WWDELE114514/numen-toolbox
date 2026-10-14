@@ -142,11 +142,12 @@ public final class VehicleGunController implements Tickers.Ticker {
 
     /** 她这一座的火力:她坐在炮塔那座就认 {@code "Main"},没有就退回按座位取的那一门。 */
     private String weapon() {
-        return vehicle.getGunData("Main") != null ? "Main" : String.valueOf(weaponBySeat());
+        return vehicle.getGunData("Main") != null ? "Main" : weaponBySeat();
     }
 
+    /** 按她的座位取那一门的名字;认不出就还是 {@code "Main"}。 */
     private String weaponBySeat() {
-        int seat = vehicle.getSeatIndex(driver());
+        int seat = vehicle.getSeatIndex(findSelf(null));
         return seat < 0 ? "Main" : vehicle.getGunName(seat);
     }
 
@@ -224,7 +225,7 @@ public final class VehicleGunController implements Tickers.Ticker {
 
     /** 射程:取这门炮配置里的;没有或离谱就给一个够用的默认。 */
     private double range(GunData data) {
-        Double r = data.get(GunProp.RANGE);
+        Integer r = data.get(GunProp.RANGE);
         return r == null || r <= 0 ? 120.0 : r;
     }
 
@@ -285,9 +286,8 @@ public final class VehicleGunController implements Tickers.Ticker {
 
     /** 两发之间隔几刻:按这门炮的 RPM 折算,和真人扣扳机的节奏一致。 */
     private int ticksPerShot(GunData data) {
-        Double rpm = data.get(GunProp.RPM);
-        double rate = rpm == null || rpm <= 0 ? 300 : rpm;
-        return Math.max(1, (int) Math.round(1200.0 / rate));
+        Integer rpm = data.get(GunProp.RPM);
+        return Math.max(1, (int) Math.round(1200.0 / (rpm == null || rpm <= 0 ? 300 : rpm)));
     }
 
     private void forget() {

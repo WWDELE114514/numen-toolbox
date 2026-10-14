@@ -1,4 +1,4 @@
-package com.wwdele.numextra.sbw;
+﻿package com.wwdele.numextra.sbw;
 
 import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import com.dwinovo.numen.agent.script.ApiError;
@@ -13,11 +13,11 @@ import com.dwinovo.numen.sdk.Note;
 import com.dwinovo.numen.sdk.Omitted;
 import com.dwinovo.numen.sdk.Pending;
 import com.dwinovo.numen.sdk.SeeAlso;
+import com.dwinovo.numen.sdk.EntityRef;
 import com.dwinovo.numen.sdk.ServerCall;
 import com.wwdele.numextra.internal.Tickers;
 import com.wwdele.numextra.internal.VehicleGunController;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
 
 import java.util.Optional;
 
@@ -48,7 +48,7 @@ public final class VehicleApi {
                         @Doc("Fire for this long, in seconds (up to 300); whichever comes first.")
                         @Omitted("keep firing until the target is gone") Optional<Double> seconds,
                         @Doc("A specific target to fire at, an entity from numen.scan.entities.")
-                        @Omitted("find the nearest enemy yourself") Optional<Integer> target) {}
+                        @Omitted("find the nearest enemy yourself") Optional<EntityRef> target) {}
 
     @Fn("Fire the cannon of the SuperbWarfare vehicle you are riding.")
     @Example("toolbox.vehicles.fire()")
@@ -76,11 +76,12 @@ public final class VehicleApi {
 
         int maxShots = Math.clamp((long) args.shots().orElse(10), 1, 1000);
         long maxTicks = args.seconds().map(s -> Math.clamp(Math.round(s * 20), 1, 20L * 300)).orElse(Long.MAX_VALUE);
-        Entity named = args.target().map(call::entity).orElse(null);
+        EntityRef namedRef = args.target().orElse(null);
+        Entity named = namedRef == null ? null : call.entity(namedRef);
 
         Pending<Volley> pending = Pending.create();
         Runnable start = () -> Tickers.add(her.getUUID(), new VolleyController(her.getUUID(), vehicle, pending,
-                maxShots, maxTicks, named == null ? null : com.dwinovo.numen.sdk.EntityRef.of(named)));
+                maxShots, maxTicks, namedRef));
         if (named == null) {
             start.run();
             return pending;
