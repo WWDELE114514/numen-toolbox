@@ -129,7 +129,6 @@ public final class SbwApi {
         if (target == null) {
             start.run();
             return pending;
-            return pending;
         }
         return call.authorize(Action.attack(target)).thenWait(v -> {
             start.run();
