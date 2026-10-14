@@ -1,4 +1,4 @@
-﻿package com.wwdele.numextra.sbw;
+package com.wwdele.numextra.sbw;
 
 import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import com.dwinovo.numen.agent.script.ApiError;
