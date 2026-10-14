@@ -74,7 +74,7 @@ public final class GunController implements Tickers.Ticker {
             return name().toLowerCase(java.util.Locale.ROOT);
         }
 
-        static Style from(String name) {
+        public static Style from(String name) {
             if (name == null) {
                 return BALLISTIC;
             }
