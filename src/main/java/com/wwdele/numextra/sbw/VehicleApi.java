@@ -364,13 +364,15 @@ public final class VehicleApi {
         if (to < 0) {
             return false;
         }
-        int room = vehicle.maxStackSize - vehicle.getItem(to).getCount();
+        int room = Math.min(piece.getMaxStackSize(), vehicle.getItem(to).getMaxStackSize())
+                - vehicle.getItem(to).getCount();
         room = Math.min(room, piece.getCount());
         if (room <= 0) {
             return false;
         }
-        ItemStack moved = piece.copy();
-        moved.setCount(room);
+        ItemStack there = vehicle.getItem(to).copy();
+        ItemStack moved = there.isEmpty() ? piece.copy() : there.copy();
+        moved.setCount(there.getCount() + room);
         vehicle.setItem(to, moved);
         her.getInventory().getItem(from).shrink(room);
         return true;
