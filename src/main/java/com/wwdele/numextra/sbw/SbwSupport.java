@@ -15,7 +15,7 @@ public final class SbwSupport {
     public static void install(NumenApi numen) {
         numen.api("sbw", "SuperbWarfare weapons: list them, inspect one, fire and reload the one you hold.",
                 SbwApi.class);
-        numen.api("vehicles", "The SuperbWarfare vehicle you ride: what its cannon can do, and firing it with a "
-                + "lead solution so the shell lands on a moving target.", VehicleApi.class);
+        numen.api("vehicles", "The SuperbWarfare vehicle you ride: its cannon, firing it with a lead solution so "
+                + "the shell lands on a moving target, and loading and switching its ammo.", VehicleApi.class);
     }
 }

@@ -118,6 +118,7 @@ public final class VehicleGunController implements Tickers.Ticker {
         Vec3 barrel = vehicle.getShootPos(weapon(), 1f);
         Vec3 want = lead(barrel, aim, data);
         turnTurret(want);
+        faceAlong(her, want);
 
         if (cooldown > 0) {
             cooldown--;
@@ -250,6 +251,19 @@ public final class VehicleGunController implements Tickers.Ticker {
     }
 
     // ---- 转炮塔 ----
+
+    /**
+     * 把她的视线也拧向炮口指的方向。炮打得准不准全看炮塔,这一步与命中无关;但它把人从"一直盯着主人看"里捞出来——
+     * 引擎的说话姿态链({@code SpeakingLookChain})每刻在实体更新之前把头拧向主人,我们在这之后(Post)再拧回来,
+     * 一个 tick 之内最后一次说话权在我们这边,于是她看起来一直在看着目标,不再回头看人。
+     */
+    private void faceAlong(LivingEntity her, Vec3 want) {
+        double yaw = Math.toDegrees(Math.atan2(want.z, want.x)) - 90.0;
+        double pitch = -Math.toDegrees(Math.asin(Math.clamp(want.y, -1.0, 1.0)));
+        her.setYRot((float) yaw);
+        her.setXRot((float) pitch);
+        her.setYHeadRot((float) yaw);
+    }
 
     /**
      * 把炮塔拧向 {@code want}:偏航与俯仰每刻各按这座炮塔自身的转速走一步,夹在它的射界里。

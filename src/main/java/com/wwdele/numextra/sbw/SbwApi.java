@@ -139,6 +139,67 @@ public final class SbwApi {
     /** 装进去几发。 */
     public record Reloaded(@Doc("Rounds in the magazine after reloading.") int loaded) {}
 
+    /** 这把枪能用的子弹种类。 */
+    @Doc("One kind of ammo this weapon takes.")
+    public record Ammo(@Doc("The item id, superbwarfare:rifle_ammo.") String item,
+                       @Doc("Its display name.") String name,
+                       @Doc("The index toolbox.sbw.shift takes.") int index,
+                       @Doc("Whether this is the kind loaded right now.") boolean loaded) {}
+
+    @Fn("Which kinds of ammo the SuperbWarfare weapon you hold takes.")
+    @Example("for _, a in ipairs(toolbox.sbw.ammo()) do print(a.index, a.item, a.loaded) end")
+    @Note("Instant and read-only. A weapon that takes several kinds fires one at a time; switch with "
+            + "toolbox.sbw.shift. Fails with no_material when you hold no weapon.")
+    @SeeAlso({"toolbox.sbw.shift", "toolbox.sbw.fire", "toolbox.sbw.reload"})
+    public static List<Ammo> ammo(ServerCall call) {
+        NumenPlayer her = call.her();
+        ItemStack stack = her.getMainHandItem();
+        if (!(stack.getItem() instanceof GunItem)) {
+            throw new ApiError(ErrorKind.NO_MATERIAL, "you are not holding a SuperbWarfare weapon",
+                    Call.of("toolbox.items.of_mod", "superbwarfare"));
+        }
+        GunData data = GunData.from(stack);
+        List<com.atsuishio.superbwarfare.data.gun.AmmoConsumer> consumers = data.get(GunProp.AMMO_CONSUMER);
+        List<Ammo> out = new ArrayList<>();
+        for (int i = 0; i < consumers.size(); i++) {
+            ItemStack shell = consumers.get(i).stack();
+            if (shell.isEmpty()) {
+                continue;
+            }
+            out.add(new Ammo(BuiltInRegistries.ITEM.getKey(shell.getItem()).toString(),
+                    shell.getHoverName().getString(), i, i == data.selectedAmmoType.get()));
+        }
+        return out;
+    }
+
+    /** 切到第几种子弹。 */
+    public record Shift(@Doc("The index from toolbox.sbw.ammo.") int kind) {}
+
+    @Fn("Switch which kind of ammo the SuperbWarfare weapon you hold fires.")
+    @Example("toolbox.sbw.shift(1)")
+    @Note("Instant. It hands the round already in the chamber back to your inventory, so nothing is wasted; then "
+            + "call toolbox.sbw.reload to fill the magazine with the new kind.")
+    @Note("Fails with no_material when you hold no weapon, and bad_argument when the index is not one "
+            + "toolbox.sbw.ammo lists.")
+    @SeeAlso({"toolbox.sbw.ammo", "toolbox.sbw.reload", "toolbox.sbw.fire"})
+    public static boolean shift(ServerCall call, Shift args) {
+        NumenPlayer her = call.her();
+        ItemStack stack = her.getMainHandItem();
+        if (!(stack.getItem() instanceof GunItem)) {
+            throw new ApiError(ErrorKind.NO_MATERIAL, "you are not holding a SuperbWarfare weapon",
+                    Call.of("toolbox.items.of_mod", "superbwarfare"));
+        }
+        GunData data = GunData.from(stack);
+        List<com.atsuishio.superbwarfare.data.gun.AmmoConsumer> consumers = data.get(GunProp.AMMO_CONSUMER);
+        if (args.kind() < 0 || args.kind() >= consumers.size()) {
+            throw new ApiError(ErrorKind.BAD_ARGUMENT,
+                    "kind must be 0.." + (consumers.size() - 1) + ", the indices toolbox.sbw.ammo lists",
+                    Call.of("toolbox.sbw.ammo"));
+        }
+        data.changeAmmoConsumer(args.kind(), her);
+        return true;
+    }
+
     @Fn("Reload the SuperbWarfare weapon you are holding.")
     @Example("toolbox.sbw.reload()")
     @Note("A body job: it plays the reload and refills from your backpack ammo, then returns.")

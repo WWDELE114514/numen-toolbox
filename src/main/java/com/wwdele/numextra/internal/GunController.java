@@ -222,11 +222,12 @@ public final class GunController implements Tickers.Ticker {
             lookAt(her, aim);
             return;
         }
-        double fly = style == Style.DIRECT ? 0 : flightTicks(her, aim, data);
-        Vec3 where = aim.position().add(aim.getDeltaMovement().scale(fly * LEAD_FUDGE));
         if (style == Style.DIRECT) {
-            where = aim.position();
+            lookAt(her, aim);
+            return;
         }
+        double fly = flightTicks(her, aim, data);
+        Vec3 where = aim.position().add(aim.getDeltaMovement().scale(fly * LEAD_FUDGE));
         lookAt(her, where.x, where.y + aim.getBbHeight() * 0.5, where.z);
     }
 
