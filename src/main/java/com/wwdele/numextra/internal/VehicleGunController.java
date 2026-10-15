@@ -139,21 +139,30 @@ public final class VehicleGunController implements Tickers.Ticker {
         fire.stopped();
     }
 
-    // ---- 这门炮 ----
+    // ---- 这一座的火力 ----
 
-    /** 她这一座的火力:她坐在炮塔那座就认 {@code "Main"},没有就退回按座位取的那一门。 */
+    /**
+     * 她这一座开着的那门炮叫什么。按座位推导——每辆车的武器名是自己起的(坦克是 {@code Cannon} 与 {@code MachineGun}、
+     * 飞机是 {@code Main}),写死任何一个都会在别的车上落空。
+     */
     private String weapon() {
-        return vehicle.getGunData("Main") != null ? "Main" : weaponBySeat();
-    }
-
-    /** 按她的座位取那一门的名字;认不出就还是 {@code "Main"}。 */
-    private String weaponBySeat() {
         int seat = vehicle.getSeatIndex(findSelf(null));
-        return seat < 0 ? "Main" : vehicle.getGunName(seat);
+        String name = seat < 0 ? null : vehicle.getGunName(seat);
+        return name == null || name.isEmpty() ? fallbackWeapon() : name;
     }
 
+    /** 认不出座位时,退回第一门有数据的炮。 */
+    private String fallbackWeapon() {
+        if (vehicle.getGunDataMap().containsKey("Main")) {
+            return "Main";
+        }
+        return vehicle.getGunDataMap().keySet().stream().sorted().findFirst().orElse(null);
+    }
+
+    /** 这一座的火力数据;这一座没炮,或者整辆车都没炮,是 null。 */
     private GunData gunData() {
-        return vehicle.getGunData(weapon());
+        String weapon = weapon();
+        return weapon == null ? null : vehicle.getGunData(weapon);
     }
 
     // ---- 索敌与预判 ----

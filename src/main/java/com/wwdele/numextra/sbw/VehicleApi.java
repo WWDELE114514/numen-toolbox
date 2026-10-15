@@ -78,7 +78,7 @@ public final class VehicleApi {
             throw new ApiError(ErrorKind.NO_MATERIAL, "you are not riding a SuperbWarfare vehicle",
                     Call.of("toolbox.items.search", "vehicle"));
         }
-        if (!vehicle.hasTurret() || vehicle.getGunData("Main") == null) {
+        if (!vehicle.hasTurret() || gunData(vehicle, her) == null) {
             throw new ApiError(ErrorKind.NO_MATERIAL, "this vehicle has no cannon to fire",
                     Call.of("toolbox.vehicles.status"));
         }
@@ -125,18 +125,40 @@ public final class VehicleApi {
             throw new ApiError(ErrorKind.NO_MATERIAL, "you are not riding a SuperbWarfare vehicle",
                     Call.of("toolbox.items.search", "vehicle"));
         }
-        String weapon = vehicle.getGunData("Main") != null ? "Main" : vehicle.getGunName(0);
+        String weapon = weapon(vehicle, her);
         var data = vehicle.getGunData(weapon);
         return new Mount(vehicle.getId(), vehicle.getType().getDescriptionId(),
                 vehicle.hasTurret(),
                 weapon == null ? "" : weapon,
-                data == null ? 0 : number(data.get(com.atsuishio.superbwarfare.data.gun.GunProp.DAMAGE)),
-                vehicle.getAmmoCount(weapon),
-                data == null ? 0 : number(data.get(com.atsuishio.superbwarfare.data.gun.GunProp.VELOCITY)),
-                data != null && data.get(com.atsuishio.superbwarfare.data.gun.GunProp.GRAVITY) != null
-                        && data.get(com.atsuishio.superbwarfare.data.gun.GunProp.GRAVITY) > 0,
-                data == null ? 0 : number(data.get(com.atsuishio.superbwarfare.data.gun.GunProp.RANGE)),
+                data == null ? 0 : number(data.get(GunProp.DAMAGE)),
+                weapon == null ? 0 : vehicle.getAmmoCount(weapon),
+                data == null ? 0 : number(data.get(GunProp.VELOCITY)),
+                data != null && data.get(GunProp.GRAVITY) != null
+                        && data.get(GunProp.GRAVITY) > 0,
+                data == null ? 0 : number(data.get(GunProp.RANGE)),
                 vehicle.getEntityData().get(VehicleEntity.TURRET_DAMAGED));
+    }
+
+    /**
+     * 她这一座开着的那门炮叫什么。按座位推导:每辆车的武器名是自己起的——坦克是 {@code Cannon} 与
+     * {@code MachineGun},飞机是 {@code Main},写死任何一个都会在别的车上落空,于是"明明在车上却开不了炮"。
+     */
+    private static String weapon(VehicleEntity vehicle, LivingEntity her) {
+        int seat = her == null ? -1 : vehicle.getSeatIndex(her);
+        String name = seat < 0 ? null : vehicle.getGunName(seat);
+        if (name != null && !name.isEmpty() && vehicle.getGunData(name) != null) {
+            return name;
+        }
+        return vehicle.getGunDataMap().keySet().stream().sorted()
+                .filter(key -> vehicle.getGunData(key) != null)
+                .findFirst()
+                .orElse(null);
+    }
+
+    /** 她这一座的火力数据;这一座没炮,或者整辆车都没炮,是 null。 */
+    private static GunData gunData(VehicleEntity vehicle, LivingEntity her) {
+        String weapon = weapon(vehicle, her);
+        return weapon == null ? null : vehicle.getGunData(weapon);
     }
 
     private static double number(Double value) {
@@ -195,7 +217,7 @@ public final class VehicleApi {
     public static AmmoInfo ammo(ServerCall call) {
         NumenPlayer her = call.her();
         VehicleEntity vehicle = ridden(call);
-        GunData data = cannon(vehicle);
+        GunData data = cannon(call, vehicle);
         if (data == null) {
             throw new ApiError(ErrorKind.NO_MATERIAL, "this vehicle has no cannon", Call.of("toolbox.vehicles.status"));
         }
@@ -218,7 +240,18 @@ public final class VehicleApi {
                 carried = Math.max(carried, countCarried(her, item));
             }
         }
-        return new AmmoInfo(kinds, vehicle.getAmmoCount(weapon(vehicle)), data.useBackpackAmmo(), carried);
+        return new AmmoInfo(kinds, usableRounds(vehicle, call, data), data.useBackpackAmmo(), carried);
+    }
+
+    /**
+     * 现在能打几发。弹匣里有多少报多少;没弹匣(坦克主炮)就从弹药来源现算——乘客身上带着创造弹药盒时那是无限的。
+     */
+    private static int usableRounds(VehicleEntity vehicle, ServerCall call, GunData data) {
+        if (!data.useBackpackAmmo()) {
+            String weapon = weapon(call, vehicle);
+            return weapon == null ? 0 : vehicle.getAmmoCount(weapon);
+        }
+        return data.countBackupAmmo(vehicle);
     }
 
     @Fn("Load shells from your inventory into the vehicle you ride.")
@@ -235,7 +268,7 @@ public final class VehicleApi {
     public static Stowed load(ServerCall call, Stow args) {
         NumenPlayer her = call.her();
         VehicleEntity vehicle = ridden(call);
-        GunData data = cannon(vehicle);
+        GunData data = cannon(call, vehicle);
         if (data == null) {
             throw new ApiError(ErrorKind.NO_MATERIAL, "this vehicle has no cannon", Call.of("toolbox.vehicles.status"));
         }
@@ -293,7 +326,7 @@ public final class VehicleApi {
     @SeeAlso({"toolbox.vehicles.ammo", "toolbox.vehicles.load", "toolbox.vehicles.fire"})
     public static boolean shift(ServerCall call, Stow args) {
         VehicleEntity vehicle = ridden(call);
-        GunData data = cannon(vehicle);
+        GunData data = cannon(call, vehicle);
         if (data == null) {
             throw new ApiError(ErrorKind.NO_MATERIAL, "this vehicle has no cannon to switch",
                     Call.of("toolbox.vehicles.status"));
@@ -394,12 +427,13 @@ public final class VehicleApi {
         return vehicle;
     }
 
-    private static GunData cannon(VehicleEntity vehicle) {
-        return vehicle.getGunData(weapon(vehicle));
+    /** 她这一座的火力数据;这一座没炮,或者整辆车都没炮,是 null。 */
+    private static GunData cannon(ServerCall call, VehicleEntity vehicle) {
+        return gunData(vehicle, call.her());
     }
 
-    private static String weapon(VehicleEntity vehicle) {
-        return vehicle.getGunData("Main") != null ? "Main" : vehicle.getGunName(0);
+    private static String weapon(ServerCall call, VehicleEntity vehicle) {
+        return weapon(vehicle, call.her());
     }
 
 
