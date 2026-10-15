@@ -21,6 +21,20 @@ description: 卓越前线(SuperbWarfare)的枪:怎么列出和查看枪的属性
    - `toolbox.sbw.fire({target = 184, count = 5})`:先把准星对住实体 184,再打 5 发。目标编号从 `numen.scan.entities` 来
 4. 换弹:`toolbox.sbw.reload()`
 
+## 弹药种类与切换
+
+一把枪能吃好几种子弹时，一次只装一种:
+
+```lua
+local kinds = toolbox.sbw.ammo()          -- 这个枪能吃哪些子弹
+for _, a in ipairs(kinds) do print(a.index, a.item, a.loaded) end
+toolbox.sbw.shift(1)                       -- 切到第 1 种
+toolbox.sbw.reload()                       -- 用新弹种把弹匣装满
+```
+
+`ammo()` 每行给 `item`、`name`、`index`(就是 shift 要用的号)、`loaded`(现在是不是这一种)。
+`shift` 会把膛里那一发还回你的背包，不浪费。
+
 ## 火控:三种瞄准,一次选一种
 
 `aim` 这一项决定怎么瞄:
