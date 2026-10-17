@@ -234,9 +234,16 @@ public final class GunController implements Tickers.Ticker {
 
     /** 她身边正飞着的弹射物有多少:不管哪一种,用来验发射到底出没出弹。 */
     private static long projectilesNear(NumenPlayer her) {
-        return her.serverLevel().getEntitiesOfClass(net.minecraft.world.entity.projectile.Projectile.class,
-                her.getBoundingBox().inflate(128),
-                p -> !(p instanceof net.minecraft.world.entity.player.Player)).size();
+        java.util.List<net.minecraft.world.entity.projectile.Projectile> found =
+                her.serverLevel().getEntitiesOfClass(net.minecraft.world.entity.projectile.Projectile.class,
+                        her.getBoundingBox().inflate(128));
+        long n = 0;
+        for (net.minecraft.world.entity.projectile.Projectile p : found) {
+            if (!(p instanceof net.minecraft.world.entity.player.Player)) {
+                n++;
+            }
+        }
+        return n;
     }
 
     /** 还没打完:看看是等得起,还是该收工了。 */
