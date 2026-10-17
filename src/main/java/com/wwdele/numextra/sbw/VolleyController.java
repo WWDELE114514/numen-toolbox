@@ -104,6 +104,11 @@ public final class VolleyController implements Tickers.Ticker {
         }
 
         @Override
+        public void waitingForAmmo() {
+            settle("no_ammo");
+        }
+
+        @Override
         public void idleOut() {
             settle("no_target");
         }
