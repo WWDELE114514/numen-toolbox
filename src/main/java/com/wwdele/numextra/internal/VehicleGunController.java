@@ -202,7 +202,9 @@ public final class VehicleGunController implements Tickers.Ticker {
     private Entity resolveTarget(LivingEntity her, GunData data) {
         double reach = range(data);
         if (named != null) {
-            Entity want = named.in(her.serverLevel());
+            Entity want = vehicle.level() instanceof net.minecraft.server.level.ServerLevel level
+                    ? named.in(level)
+                    : null;
             if (want != null && want.isAlive() && want.distanceToSqr(vehicle) <= reach * reach) {
                 target = want;
                 return target;
