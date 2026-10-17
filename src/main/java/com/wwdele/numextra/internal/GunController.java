@@ -16,6 +16,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.UUID;
 
@@ -38,6 +40,8 @@ import java.util.UUID;
  * </ul>
  */
 public final class GunController implements Tickers.Ticker {
+
+    private static final Logger LOG = LoggerFactory.getLogger("numen_extra");
 
     /** 一直打不出去、也没弹药时,最多再等多久(游戏刻)。 */
     private static final int MAX_IDLE = 20 * 20;
@@ -147,6 +151,11 @@ public final class GunController implements Tickers.Ticker {
             lookAt(her, aim);
             lock.zoom(data);
             boolean locked = lock.advance(her, aim);
+            if (idle % 20 == 0) {
+                LOG.info("numen_extra: seeking {} | progress={} at {}",
+                        her.getMainHandItem().getItem(), lock.progress(),
+                        aim.getType().getDescriptionId());
+            }
             if (!locked) {
                 // 还在锁:这一 tick 只瞄,不发
                 return waiting(her, data);
@@ -177,8 +186,24 @@ public final class GunController implements Tickers.Ticker {
         }
 
         if (data.canShoot(her) && cooldown <= 0) {
+            if (needsLock) {
+                LOG.info("numen_extra: fire {} at {} | locked={} ammo={} mag={} reloading={} bolt={} overHeat={} speed={}",
+                        her.getMainHandItem().getItem(),
+                        aim == null ? "air" : aim.getType().getDescriptionId(),
+                        lock != null && lock.locked(),
+                        data.ammo.get(), data.get(GunProp.MAGAZINE), data.reloading(),
+                        data.bolt.needed.get(), data.overHeat.get(), data.get(GunProp.VELOCITY));
+            }
             fire(her, data, aim);
             return fired >= maxShots ? done() : waiting(her, data);
+        }
+
+        // 锁定完成、冷却也到了却打不出去:把挡着的那一项说清(限流,别每刻刷)
+        if (needsLock && aim != null && lock != null && lock.locked() && cooldown <= 0 && idle % 20 == 0) {
+            LOG.info("numen_extra: fire blocked | {} | has_ammo={} reloading={} bolt_needed={} overHeat={} heat={} mag={} backup={}",
+                    her.getMainHandItem().getItem(),
+                    data.hasEnoughAmmoToShoot(her), data.reloading(), data.bolt.needed.get(),
+                    data.overHeat.get(), data.heat.get(), data.get(GunProp.MAGAZINE), data.countBackupAmmo(her));
         }
 
         return waiting(her, data);
@@ -191,12 +216,22 @@ public final class GunController implements Tickers.Ticker {
 
     /** 打出去几发:这一 tick 里该补的都补上,帧率低也不少吃。 */
     private void fire(NumenPlayer her, GunData data, Entity aim) {
+        long before = missilesAboard(her);
         int interval = ticksPerShot(data);
         do {
             data.shoot(her, spread(data), zoom(), aim == null ? null : aim.getUUID());
             fired++;
             cooldown += interval;
         } while (cooldown <= 0 && fired < maxShots && data.canShoot(her));
+        long after = missilesAboard(her);
+        LOG.info("numen_extra: fired {} | projectiles before={} after={} (delta {})",
+                her.getMainHandItem().getItem(), before, after, after - before);
+    }
+
+    /** 世界里正飞着的制导弹药有多少枚:用来验发射到底出没出弹。 */
+    private static long missilesAboard(NumenPlayer her) {
+        return her.serverLevel().getEntitiesOfClass(com.atsuishio.superbwarfare.entity.projectile.MissileProjectile.class,
+                her.getBoundingBox().inflate(256)).size();
     }
 
     /** 还没打完:看看是等得起,还是该收工了。 */
