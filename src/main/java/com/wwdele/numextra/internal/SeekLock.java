@@ -86,6 +86,15 @@ public final class SeekLock {
         return locked;
     }
 
+    /**
+     * 这一 tick 给它续上镜。**发射之后也不能收**——地对空导弹(IglaMissileEntity)飞行的每一刻都在查
+     * {@code owner.mainHandItem} 的 {@code zooming}:一收镜就 {@code isLost()},立刻放弃转向直直往下掉,
+     * 看着就是"发射了但导弹没飞起来"。所以只要她手里还握着这把索敌武器,这面镜就得一直开着。
+     */
+    public void sustain(GunData data) {
+        data.zooming.set(true);
+    }
+
     /** 锁没锁上。 */
     public boolean locked() {
         return locked;

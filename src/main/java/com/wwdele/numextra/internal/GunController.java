@@ -127,15 +127,24 @@ public final class GunController implements Tickers.Ticker {
         if (aim != null && !aim.isAlive()) {
             aim = null;
         }
+        // 索敌武器的视线在下面锁定那段里拧(对着目标当前中心);普通枪按选的火控风格瞄
         if (aim != null) {
-            aim(her, aim, data);
-            aimTicks = Math.min(aimTicks + 1, AIM_READY_TICKS);
+            if (needsLock) {
+                // 锁定进度由 SeekLock 自己数,不占 aimTicks 那份账
+                aimTicks = AIM_READY_TICKS;
+            } else {
+                aim(her, aim, data);
+                aimTicks = Math.min(aimTicks + 1, AIM_READY_TICKS);
+            }
         } else {
             aimTicks = 0;
         }
 
-        // 索敌武器(地对空导弹、标枪)要先开镜、把视线稳在锁定角内、锁够时间才发得出去
+        // 索敌武器(地对空导弹、标枪)要先开镜、把视线稳在锁定角内、锁够时间才发得出去。
+        // 锁定用的视线必须对着目标的当前位置——卓越前线判锁定用的是玩家的视线与目标中心的夹角,提前量会把
+        // 这个夹角撑大(标枪的锁定角只有 10 度),于是永远锁不上。导弹自己会制导,指中心正好。
         if (needsLock && aim != null) {
+            lookAt(her, aim);
             lock.zoom(data);
             boolean locked = lock.advance(her, aim);
             if (!locked) {
@@ -144,6 +153,11 @@ public final class GunController implements Tickers.Ticker {
             }
         } else if (needsLock) {
             lock.reset();
+        }
+
+        // 索敌武器的镜从发射前到导弹落地都不能收:一收镜,已经飞出去的导弹立刻判定丢失、放弃制导
+        if (needsLock) {
+            lock.sustain(data);
         }
 
         if (data.shouldStartReloading(her)) {
