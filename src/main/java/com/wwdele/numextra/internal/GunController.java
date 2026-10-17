@@ -236,7 +236,7 @@ public final class GunController implements Tickers.Ticker {
     private static long projectilesNear(NumenPlayer her) {
         return her.serverLevel().getEntitiesOfClass(net.minecraft.world.entity.projectile.Projectile.class,
                 her.getBoundingBox().inflate(128),
-                p -> p != her && !(p instanceof net.minecraft.world.entity.player.Player)).size();
+                p -> !(p instanceof net.minecraft.world.entity.player.Player)).size();
     }
 
     /** 还没打完:看看是等得起,还是该收工了。 */
