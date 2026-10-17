@@ -58,6 +58,11 @@ public final class GunController implements Tickers.Ticker {
     /** 看得见目标多久了:按卓越前线给 mob 的那一套,瞄够久才开第一枪。 */
     private int aimTicks;
 
+    /** 这把武器是不是要先锁定才发得出去;换枪会变,所以每刻跟着枪重算。 */
+    private boolean needsLock;
+    /** 锁定进度;只有索敌武器(地对空导弹、标枪)用得上。 */
+    private SeekLock lock;
+
     /** 火控怎么瞄。 */
     public enum Style {
 
@@ -111,6 +116,13 @@ public final class GunController implements Tickers.Ticker {
         // 推进这把枪自己的状态:冷却、拉栓、换弹、过热都从这里走
         data.tick(her, true);
 
+        // 换枪了:锁定状态跟着换,别拿上一把的进度打这一把
+        boolean seeking = SeekLock.needsLock(data);
+        if (seeking != needsLock) {
+            needsLock = seeking;
+            lock = seeking ? new SeekLock(data) : null;
+        }
+
         Entity aim = target == null ? null : target.in(her.serverLevel());
         if (aim != null && !aim.isAlive()) {
             aim = null;
@@ -120,6 +132,18 @@ public final class GunController implements Tickers.Ticker {
             aimTicks = Math.min(aimTicks + 1, AIM_READY_TICKS);
         } else {
             aimTicks = 0;
+        }
+
+        // 索敌武器(地对空导弹、标枪)要先开镜、把视线稳在锁定角内、锁够时间才发得出去
+        if (needsLock && aim != null) {
+            lock.zoom(data);
+            boolean locked = lock.advance(her, aim);
+            if (!locked) {
+                // 还在锁:这一 tick 只瞄,不发
+                return waiting(her, data);
+            }
+        } else if (needsLock) {
+            lock.reset();
         }
 
         if (data.shouldStartReloading(her)) {

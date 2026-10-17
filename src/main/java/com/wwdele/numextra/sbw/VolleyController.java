@@ -42,7 +42,7 @@ public final class VolleyController implements Tickers.Ticker {
         this.maxShots = maxShots;
         this.maxTicks = maxTicks;
         this.named = named;
-        this.gun = new VehicleGunController(companion, vehicle, new Bridge());
+        this.gun = new VehicleGunController(companion, vehicle, new Bridge(), named);
     }
 
     @Override

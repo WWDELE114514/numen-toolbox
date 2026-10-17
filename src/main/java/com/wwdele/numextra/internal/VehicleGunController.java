@@ -7,6 +7,7 @@ import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import com.atsuishio.superbwarfare.entity.vehicle.utils.VehicleWeaponUtils;
 import com.atsuishio.superbwarfare.tools.RangeTool;
 import com.dwinovo.numen.entity.NumenPlayer;
+import com.dwinovo.numen.sdk.EntityRef;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
@@ -43,6 +44,8 @@ public final class VehicleGunController implements Tickers.Ticker {
     private final UUID companion;
     private final VehicleEntity vehicle;
     private final VehicleFire fire;
+    /** 点名要打的那一个;有就只打它,不自己挑最近的。 */
+    private final EntityRef named;
 
     /** 目标的运行期 id;每刻重认,走开、死了、看不见了就重新索敌。 */
     private Entity target;
@@ -50,6 +53,8 @@ public final class VehicleGunController implements Tickers.Ticker {
     private int idle;
     /** 连着多少刻这门炮说不能打;只用来说清"为什么还没打出去"。 */
     private int waiting;
+    /** 索敌武器(地对空导弹、标炮)的锁定进度;普通炮不用。 */
+    private SeekLock lock;
 
     /** 一次开火交回什么、什么时候算打完,由调用方决定。 */
     public interface VehicleFire {
@@ -73,10 +78,11 @@ public final class VehicleGunController implements Tickers.Ticker {
         void stopped();
     }
 
-    public VehicleGunController(UUID companion, VehicleEntity vehicle, VehicleFire fire) {
+    public VehicleGunController(UUID companion, VehicleEntity vehicle, VehicleFire fire, EntityRef named) {
         this.companion = companion;
         this.vehicle = vehicle;
         this.fire = fire;
+        this.named = named;
     }
 
     @Override
@@ -106,6 +112,14 @@ public final class VehicleGunController implements Tickers.Ticker {
             data.startReload();
         }
 
+        // 索敌武器(地对空导弹、标枪)要先开镜、把炮稳在锁定角内、锁够时间才发得出去
+        boolean seeking = SeekLock.needsLock(data);
+        if (seeking && lock == null) {
+            lock = new SeekLock(data);
+        } else if (!seeking) {
+            lock = null;
+        }
+
         Entity aim = resolveTarget(her, data);
         if (aim == null) {
             if (++idle > MAX_IDLE) {
@@ -121,6 +135,14 @@ public final class VehicleGunController implements Tickers.Ticker {
         Vec3 want = lead(barrel, aim, data, weapon);
         turnTurret(want);
         faceAlong(her, want);
+
+        if (lock != null) {
+            lock.zoom(data);
+            // 还在锁:这一 tick 只瞄,不发
+            if (!lock.advance(her, aim)) {
+                return true;
+            }
+        }
 
         if (!onTarget(barrel, aim, tolerance(aim, data))) {
             // 炮塔还在转,等它到位
@@ -173,9 +195,21 @@ public final class VehicleGunController implements Tickers.Ticker {
 
     // ---- 索敌与预判 ----
 
-    /** 每刻把目标重认一遍:走远、死了、看不见了,就重新索敌。 */
+    /**
+     * 这一刻打谁。点名了就打点名的那个——它跑出射程、死了、看不清了才撒手,绝不去瞄旁边更近的;
+     * 没点名才自己挑最近的敌人。
+     */
     private Entity resolveTarget(LivingEntity her, GunData data) {
         double reach = range(data);
+        if (named != null) {
+            Entity want = named.in(her.serverLevel());
+            if (want != null && want.isAlive() && want.distanceToSqr(vehicle) <= reach * reach) {
+                target = want;
+                return target;
+            }
+            // 点名那个够不着了:不偷偷换目标,撒手让调用方知道
+            return null;
+        }
         if (target != null && target.isAlive() && target.distanceToSqr(vehicle) <= reach * reach) {
             if (sees(vehicle.getShootPos(weapon(her), 1f), target)) {
                 lostSight = 0;
