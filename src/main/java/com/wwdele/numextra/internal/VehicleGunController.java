@@ -2,8 +2,9 @@ package com.wwdele.numextra.internal;
 
 import com.atsuishio.superbwarfare.data.gun.GunData;
 import com.atsuishio.superbwarfare.data.gun.GunProp;
+import com.atsuishio.superbwarfare.data.gun.SeekWeaponInfo;
 import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
-import com.atsuishio.superbwarfare.entity.vehicle.utils.VehicleVecUtils;
+import com.atsuishio.superbwarfare.entity.vehicle.utils.VehicleWeaponUtils;
 import com.atsuishio.superbwarfare.tools.RangeTool;
 import com.dwinovo.numen.entity.NumenPlayer;
 import net.minecraft.server.MinecraftServer;
@@ -19,31 +20,22 @@ import java.util.UUID;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 
 /**
- * 载具的火控:索敌、预判、转炮塔、开火。算法照卓越前线自己的防御塔那一套,只是由我们替她驱动。
+ * 载具的火控:索敌、预判、转炮塔、等这门炮自己说能打了再打。
  *
- * <p>为什么她自己打不好:卓越前线的炮塔在服务端只认两样东西——座位上是个 {@link Player} 就跟着她的视线走,是个
- * {@code Mob} 才按目标自动瞄。她是个 {@link ServerPlayer},于是炮塔跟着她的视线,而她不看目标;同时炮口方向和炮塔方向
- * 是同一套姿态,{@code vehicleShoot} 的弹就顺着那个没对准的方向飞出去——这就是"老打不中、还会打到旁边"的由来。
+ * <p>为什么不自己算节奏:每一门炮的脾气全在它自己的数据里——坦克主炮 {@code Magazine:1}、换弹 5 秒、后坐 2 秒,
+ * 而 {@code GunData.canShoot(ammoSupplier)} 已经把弹药、换弹中、拉栓中、过热全算进去了。自己另算一套 RPM,
+ * 只会在这门炮明明不能打的时候反复去戳它,一发都出不去。所以这里只做一件事:**问它能不能打,能打就打,不能打就等**。
  *
- * <p>这里每一步都对着炮塔来做,不碰她的视线:
- * <ol>
- *   <li><b>索敌</b>:以炮口为心,在炮塔的偏航/俯仰射界与射程内挑最近的敌人,视线被挡住的不算,自己人(她、主人、
- *       同队、这辆车)一律跳过。</li>
- *   <li><b>预判</b>:目标在动,炮弹出膛后还要飞一阵。用卓越前线的 {@link RangeTool#calculateFiringSolution} 按弹速、
- *       重力、目标速度解出该往哪儿打——它用牛顿迭代解出飞行时间,给出提前量。激光类武器没有飞行时间,直接指目标。</li>
- *   <li><b>转炮塔</b>:把 {@code turretYRot/turretXRot} 拧向那个方向,每刻按炮塔自身的转速限幅,并夹在射界里
- *       ——和它自己转得一样快,不做瞬移。</li>
- *   <li><b>开火</b>:炮口方向和目标方向差到容差之内才 {@code vehicleShoot},按 RPM 折算成刻数,一次一发,
- *       和真人按住扳机一样,不会一瞬间把炮弹全泼出去。</li>
- * </ol>
+ * <p>换弹要我们自己推一把:自动换弹那条路是给玩家手上那把枪的,载具炮虽然每刻也被 {@code gunTick} 推进,但
+ * {@code Magazine:1} 这种打一发就空的炮,得由我们看它空了就 {@code startReload()}。
  */
 public final class VehicleGunController implements Tickers.Ticker {
 
-    /** 打不出去、也没目标时,最多再等多久(游戏刻)。 */
+    /** 一直瞄不上、也没目标时,最多再等多久(游戏刻)。 */
     private static final int MAX_IDLE = 20 * 20;
 
     /** 炮口方向和目标方向相差不到这么多度,才算瞄上了(度)。 */
-    private static final double AIM_TOLERANCE = 2.0;
+    private static final double AIM_TOLERANCE = 2.5;
 
     /** 看不见目标这么久就换一个(刻);比这短只是被自己人的烟挡了一下。 */
     private static final int LOSE_SIGHT_TICKS = 30;
@@ -55,8 +47,9 @@ public final class VehicleGunController implements Tickers.Ticker {
     /** 目标的运行期 id;每刻重认,走开、死了、看不见了就重新索敌。 */
     private Entity target;
     private int lostSight;
-    private int cooldown;
     private int idle;
+    /** 连着多少刻这门炮说不能打;只用来说清"为什么还没打出去"。 */
+    private int waiting;
 
     /** 一次开火交回什么、什么时候算打完,由调用方决定。 */
     public interface VehicleFire {
@@ -66,6 +59,9 @@ public final class VehicleGunController implements Tickers.Ticker {
 
         /** 打出去了一发。 */
         void fired(int shots, Entity target);
+
+        /** 这门炮现在没弹药、也在等装填。 */
+        void waitingForAmmo();
 
         /** 她不在车上了。 */
         void offVehicle();
@@ -99,10 +95,15 @@ public final class VehicleGunController implements Tickers.Ticker {
             fire.offVehicle();
             return false;
         }
-        GunData data = gunData();
+        GunData data = gunData(her);
         if (data == null) {
             fire.offVehicle();
             return false;
+        }
+
+        // 打一发就空的炮(坦克主炮 Magazine:1 就是),得我们看它空了就把换弹顶起来
+        if (data.shouldStartReloading(vehicle)) {
+            data.startReload();
         }
 
         Entity aim = resolveTarget(her, data);
@@ -115,22 +116,29 @@ public final class VehicleGunController implements Tickers.Ticker {
         }
         idle = 0;
 
-        Vec3 barrel = vehicle.getShootPos(weapon(), 1f);
-        Vec3 want = lead(barrel, aim, data);
+        String weapon = weapon(her);
+        Vec3 barrel = vehicle.getShootPos(weapon, 1f);
+        Vec3 want = lead(barrel, aim, data, weapon);
         turnTurret(want);
         faceAlong(her, want);
 
-        if (cooldown > 0) {
-            cooldown--;
-            return true;
-        }
-        if (!onTarget(barrel, aim)) {
+        if (!onTarget(barrel, aim, tolerance(aim, data))) {
             // 炮塔还在转,等它到位
             return true;
         }
-        vehicle.vehicleShoot(her, weapon(), aim.getUUID(), aim.position());
+
+        // 这一炮能不能打,全听这门炮自己的:弹药、换弹中、拉栓中、过热都算在内
+        if (!data.canShoot(vehicle)) {
+            if (!data.hasEnoughAmmoToShoot(vehicle) && data.countBackupAmmo(vehicle) <= 0) {
+                fire.waitingForAmmo();
+                return false;
+            }
+            waiting++;
+            return true;
+        }
+        waiting = 0;
+        vehicle.vehicleShoot(her, weapon(her), aim.getUUID(), aim.position());
         fire.fired(1, aim);
-        cooldown = ticksPerShot(data);
         return true;
     }
 
@@ -142,36 +150,34 @@ public final class VehicleGunController implements Tickers.Ticker {
     // ---- 这一座的火力 ----
 
     /**
-     * 她这一座开着的那门炮叫什么。按座位推导——每辆车的武器名是自己起的(坦克是 {@code Cannon} 与 {@code MachineGun}、
-     * 飞机是 {@code Main}),写死任何一个都会在别的车上落空。
+     * 她这一座开着的那门炮叫什么。按座位推导:每辆车的武器名是自己起的——坦克是 {@code Cannon} 与
+     * {@code MachineGun},飞机是 {@code Main},写死任何一个都会在别的车上落空,于是"明明在车上却开不了炮"。
      */
-    private String weapon() {
-        int seat = vehicle.getSeatIndex(findSelf(null));
+    private String weapon(LivingEntity her) {
+        int seat = vehicle.getSeatIndex(her);
         String name = seat < 0 ? null : vehicle.getGunName(seat);
-        return name == null || name.isEmpty() ? fallbackWeapon() : name;
-    }
-
-    /** 认不出座位时,退回第一门有数据的炮。 */
-    private String fallbackWeapon() {
-        if (vehicle.getGunDataMap().containsKey("Main")) {
-            return "Main";
+        if (name != null && !name.isEmpty() && vehicle.getGunData(name) != null) {
+            return name;
         }
-        return vehicle.getGunDataMap().keySet().stream().sorted().findFirst().orElse(null);
+        return vehicle.getGunDataMap().keySet().stream().sorted()
+                .filter(key -> vehicle.getGunData(key) != null)
+                .findFirst()
+                .orElse(null);
     }
 
     /** 这一座的火力数据;这一座没炮,或者整辆车都没炮,是 null。 */
-    private GunData gunData() {
-        String weapon = weapon();
+    private GunData gunData(LivingEntity her) {
+        String weapon = weapon(her);
         return weapon == null ? null : vehicle.getGunData(weapon);
     }
 
     // ---- 索敌与预判 ----
 
-    /** 每刻把目标重认一遍:就近的敌人更值得打时就换过去。 */
+    /** 每刻把目标重认一遍:走远、死了、看不见了,就重新索敌。 */
     private Entity resolveTarget(LivingEntity her, GunData data) {
         double reach = range(data);
         if (target != null && target.isAlive() && target.distanceToSqr(vehicle) <= reach * reach) {
-            if (sees(vehicle.getShootPos(weapon(), 1f), target)) {
+            if (sees(vehicle.getShootPos(weapon(her), 1f), target)) {
                 lostSight = 0;
                 return target;
             }
@@ -189,7 +195,7 @@ public final class VehicleGunController implements Tickers.Ticker {
 
     /** 射界与射程内最近的敌人,视线要通。 */
     private Entity acquire(LivingEntity her, GunData data, double reach) {
-        Vec3 barrel = vehicle.getShootPos(weapon(), 1f);
+        Vec3 barrel = vehicle.getShootPos(weapon(her), 1f);
         Entity best = null;
         double bestDist = Double.MAX_VALUE;
         for (Entity candidate : vehicle.level().getEntitiesOfClass(Entity.class,
@@ -210,7 +216,7 @@ public final class VehicleGunController implements Tickers.Ticker {
         return best;
     }
 
-    /** 能不能打:活的、不是她自己与这辆车、不是她的主人与同队、也不打已经骑在其他载具上的自己人。 */
+    /** 能不能打:活的、不是她自己与这辆车、不是她的主人与同队。 */
     private boolean shootable(LivingEntity her, Entity candidate) {
         if (!candidate.isAlive() || candidate == vehicle || candidate == her) {
             return false;
@@ -233,84 +239,83 @@ public final class VehicleGunController implements Tickers.Ticker {
                 .getType() != HitResult.Type.BLOCK;
     }
 
-    /** 射程:取这门炮配置里的;没有或离谱就给一个够用的默认。 */
+    /** 射程:制导武器用它自己配的锁定射程(导弹能到几百格),普通炮用它的射程,都没有才给默认。 */
     private double range(GunData data) {
+        SeekWeaponInfo seek = data.get(GunProp.SEEK_WEAPON_INFO);
+        if (seek != null && seek.getSeekRange() > 0) {
+            return seek.getSeekRange();
+        }
         Integer r = data.get(GunProp.RANGE);
         return r == null || r <= 0 ? 120.0 : r;
     }
 
     /**
-     * 预判出该往哪儿打。激光类没有飞行时间,直指目标;炮弹按弹速、重力、目标速度解提前量。目标速度乘一个略大于 1 的
-     * 系数,和卓越前线的防御塔一样——目标在被瞄准的这会儿多半还在动,略微多算一点提前量更贴。
+     * 预判出该往哪儿打。用卓越前线自己防御塔那一套解算——它按弹速、重力、目标速度解出飞行时间。
+     * 这一条不能省:坦克炮 {@code Gravity: 0.03}、弹速才 20,飞 100 格要 5 秒、下坠十几格,不算重力弹会全落在目标脚前。
+     * 激光类没有飞行时间,直指目标。
      */
-    private Vec3 lead(Vec3 barrel, Entity aim, GunData data) {
+    private Vec3 lead(Vec3 barrel, Entity aim, GunData data, String weapon) {
         Vec3 aimPos = aim.getBoundingBox().getCenter();
         var projectile = data.get(GunProp.PROJECTILE);
         String kind = projectile == null ? "" : String.valueOf(projectile.getItemId())
                 .trim().toLowerCase(java.util.Locale.ROOT);
-        if (kind.equals("ray")) {
+        // 制导武器(导弹)与激光都没有飞行时间,直指目标:导弹发射后自己纠偏追,给它算提前量反而一上来就歪
+        if (kind.equals("ray") || guided(data)) {
             return barrel.vectorTo(aimPos).normalize();
         }
-        Vec3 vel = aim.getDeltaMovement().scale(1.1 + vehicle.getRandom().nextFloat() * 0.2f);
+        Vec3 vel = aim.getDeltaMovement();
         if (aim instanceof LivingEntity moving) {
-            vel = vel.add(0.0, moving.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.GRAVITY), 0.0);
+            vel = vel.add(0.0, moving.getAttributeValue(Attributes.GRAVITY), 0.0);
         }
+        // 弹速与重力都按这一座炮自己的数据问;载具的这几个 getter 会在 ADD_SHOOTER_DELTA_MOVEMENT 时把车速算进去
         return RangeTool.calculateFiringSolution(barrel, aimPos, vel,
-                vehicle.getProjectileVelocity(weapon()), vehicle.getProjectileGravity(weapon()));
+                vehicle.getProjectileVelocity(weapon), vehicle.getProjectileGravity(weapon));
     }
 
     // ---- 转炮塔 ----
 
     /**
-     * 把她的视线也拧向炮口指的方向。炮打得准不准全看炮塔,这一步与命中无关;但它把人从"一直盯着主人看"里捞出来——
-     * 引擎的说话姿态链({@code SpeakingLookChain})每刻在实体更新之前把头拧向主人,我们在这之后(Post)再拧回来,
-     * 一个 tick 之内最后一次说话权在我们这边,于是她看起来一直在看着目标,不再回头看人。
+     * 把炮塔拧向 {@code want}。这一步直接用卓越前线自己的 {@code turretAutoAimFromVector}——它按炮塔当前真实朝向
+     * ({@code getBarrelVector})算差、每刻走一小步、夹在射界里。自己重写这套只会把方向基准弄错(用
+     * {@code getShootVec} 代替 {@code getBarrelVector}),于是拧过去又拧回来、永远对不上,看着就是乱转。
      */
-    private void faceAlong(LivingEntity her, Vec3 want) {
-        double yaw = Math.toDegrees(Math.atan2(want.z, want.x)) - 90.0;
-        double pitch = -Math.toDegrees(Math.asin(Math.clamp(want.y, -1.0, 1.0)));
-        her.setYRot((float) yaw);
-        her.setXRot((float) pitch);
-        her.setYHeadRot((float) yaw);
+    private void turnTurret(Vec3 want) {
+        VehicleWeaponUtils.turretAutoAimFromVector(vehicle, want);
     }
 
     /**
-     * 把炮塔拧向 {@code want}:偏航与俯仰每刻各按这座炮塔自身的转速走一步,夹在它的射界里。
-     * 方向和卓越前线自己那一套保持一致(见 {@code VehicleWeaponUtils.turretAutoAimFromVector}),所以转起来一样自然。
+     * 炮口对准目标了没有。基准和它自己的自动瞄准一致——炮塔真实朝向({@code getBarrelVector})与目标方向的夹角,
+     * 免得"我以为瞄上了、其实炮塔指着别处"。制导武器放宽:导弹发射后自己会纠偏,只要大致朝向(夹角远小于
+     * 它丢失目标的 120°)就能打出去追,不必等炮塔拧到分毫。
      */
-    private void turnTurret(Vec3 want) {
-        Vec3 barrelVec = vehicle.getShootVec(weapon(), 1f);
-        float yawDiff = Mth.wrapDegrees(
-                (float) (-VehicleVecUtils.getYRotFromVector(want) + VehicleVecUtils.getYRotFromVector(barrelVec)));
-        float pitchDiff = Mth.wrapDegrees(
-                (float) (-VehicleVecUtils.getXRotFromVector(want) + VehicleVecUtils.getXRotFromVector(barrelVec)));
-
-        float xSpeed = vehicle.getTurretTurnXSpeed();
-        float ySpeed = vehicle.getTurretTurnYSpeed();
-        if (vehicle.getEntityData().get(VehicleEntity.TURRET_DAMAGED)) {
-            xSpeed *= 0.2f;
-            ySpeed *= 0.2f;
-        }
-
-        vehicle.setTurretXRot(Mth.clamp(vehicle.getTurretXRot() + Mth.clamp(0.75f * pitchDiff, -xSpeed, xSpeed),
-                -vehicle.getTurretMaxPitch() + vehicle.getCustomTurretMaxPitch(),
-                -vehicle.getTurretMinPitch() - vehicle.getCustomTurretMinPitch()));
-        vehicle.setTurretYRot(Mth.clamp(vehicle.getTurretYRot() - Mth.clamp(yawDiff, -ySpeed, ySpeed),
-                -vehicle.getTurretMaxYaw(), -vehicle.getTurretMinYaw()));
+    private boolean onTarget(Vec3 barrel, Entity aim, double tolerance) {
+        Vec3 want = barrel.vectorTo(aim.getBoundingBox().getCenter()).normalize();
+        Vec3 at = vehicle.getBarrelVector(1f);
+        double deg = Math.toDegrees(Math.acos(Mth.clamp(at.normalize().dot(want), -1.0, 1.0)));
+        return deg <= tolerance;
     }
 
-    /** 炮口方向和目标中心差得够小,才算瞄上了。 */
-    private boolean onTarget(Vec3 barrel, Entity aim) {
-        Vec3 to = barrel.vectorTo(aim.getBoundingBox().getCenter()).normalize();
-        Vec3 at = vehicle.getShootVec(weapon(), 1f).normalize();
-        double deg = Math.toDegrees(Math.acos(Mth.clamp(at.dot(to), -1.0, 1.0)));
-        return deg <= AIM_TOLERANCE;
+    /** 发射容差(度):制导武器放宽,普通炮弹要准。 */
+    private double tolerance(Entity aim, GunData data) {
+        return guided(data) ? 15.0 : AIM_TOLERANCE;
     }
 
-    /** 两发之间隔几刻:按这门炮的 RPM 折算,和真人扣扳机的节奏一致。 */
-    private int ticksPerShot(GunData data) {
-        Integer rpm = data.get(GunProp.RPM);
-        return Math.max(1, (int) Math.round(1200.0 / (rpm == null || rpm <= 0 ? 300 : rpm)));
+    /** 这门炮是不是制导武器(导弹、火箭弹):看它有没有配 {@link SeekWeaponInfo}。 */
+    private boolean guided(GunData data) {
+        return data.get(GunProp.SEEK_WEAPON_INFO) != null;
+    }
+
+    /**
+     * 把她的视线也拧向炮口指的方向。炮打得准不准全看炮塔,这一步与命中无关;但它把人从"一直盯着主人看"里捞出来——
+     * 引擎的说话姿态链每刻在实体更新之前把头拧向主人,我们在这之后(Post)再拧回来,一个 tick 之内最后一次说话权
+     * 在我们这边,于是她看起来一直在看着目标,不再回头看人。
+     */
+    private void faceAlong(LivingEntity her, Vec3 want) {
+        double yaw = Math.toDegrees(Math.atan2(want.z, want.x)) - 90.0;
+        double pitch = -Math.toDegrees(Math.asin(Mth.clamp(want.y, -1.0, 1.0)));
+        her.setYRot((float) yaw);
+        her.setXRot((float) pitch);
+        her.setYHeadRot((float) yaw);
     }
 
     private void forget() {
@@ -319,15 +324,17 @@ public final class VehicleGunController implements Tickers.Ticker {
     }
 
     private LivingEntity findSelf(MinecraftServer server) {
-        if (server == null) {
-            return vehicle.getFirstPassenger() instanceof LivingEntity living ? living : null;
-        }
         ServerPlayer player = server.getPlayerList().getPlayer(companion);
         return player instanceof LivingEntity living ? living : null;
     }
 
-    /** 当前瞄着谁;调试用。 */
+    /** 当前瞄着谁;调试与收尾用。 */
     public Entity currentTarget() {
         return target;
+    }
+
+    /** 这门炮连续说"不能打"的刻数;只说等得久不久,不用来判胜负。 */
+    public int waitingTicks() {
+        return waiting;
     }
 }
