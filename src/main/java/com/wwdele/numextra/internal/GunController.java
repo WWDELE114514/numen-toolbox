@@ -216,22 +216,27 @@ public final class GunController implements Tickers.Ticker {
 
     /** 打出去几发:这一 tick 里该补的都补上,帧率低也不少吃。 */
     private void fire(NumenPlayer her, GunData data, Entity aim) {
-        long before = missilesAboard(her);
+        long before = projectilesNear(her);
         int interval = ticksPerShot(data);
         do {
             data.shoot(her, spread(data), zoom(), aim == null ? null : aim.getUUID());
             fired++;
             cooldown += interval;
         } while (cooldown <= 0 && fired < maxShots && data.canShoot(her));
-        long after = missilesAboard(her);
-        LOG.info("numen_extra: fired {} | projectiles before={} after={} (delta {})",
-                her.getMainHandItem().getItem(), before, after, after - before);
+        long after = projectilesNear(her);
+        var projectile = data.get(GunProp.PROJECTILE);
+        LOG.info("numen_extra: fired {} | projectile='{}' speed={} | near before={} after={} (delta {})",
+                her.getMainHandItem().getItem(),
+                projectile == null ? "null" : projectile.getItemId(),
+                data.get(GunProp.VELOCITY),
+                before, after, after - before);
     }
 
-    /** 世界里正飞着的制导弹药有多少枚:用来验发射到底出没出弹。 */
-    private static long missilesAboard(NumenPlayer her) {
-        return her.serverLevel().getEntitiesOfClass(com.atsuishio.superbwarfare.entity.projectile.MissileProjectile.class,
-                her.getBoundingBox().inflate(256)).size();
+    /** 她身边正飞着的弹射物有多少:不管哪一种,用来验发射到底出没出弹。 */
+    private static long projectilesNear(NumenPlayer her) {
+        return her.serverLevel().getEntitiesOfClass(net.minecraft.world.entity.projectile.Projectile.class,
+                her.getBoundingBox().inflate(128),
+                p -> p != her && !(p instanceof net.minecraft.world.entity.player.Player)).size();
     }
 
     /** 还没打完:看看是等得起,还是该收工了。 */
